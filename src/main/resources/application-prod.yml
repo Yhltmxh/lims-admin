@@ -1,0 +1,7 @@
+knife4j:
+  enable: false
+
+logging:
+  level:
+    com.shou.lims: info
+    org.springframework.security: info

@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: lims-admin
+  profiles:
+    active: dev
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:5432/lims?currentSchema=public
+    username: ivorysql
+    password: 123456
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6380
+      password: 123456
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.shou.lims
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: is_delete
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+jwt:
+  access-token:
+    secret: changeme-this-must-be-a-256-bit-base64-encoded-secret-key-at-least-32-chars
+    expiration: 15
+  refresh-token:
+    expiration: 7
+
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.shou.lims: debug
+    org.springframework.security: debug

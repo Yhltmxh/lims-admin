@@ -1,0 +1,9 @@
+spring:
+  devtools:
+    restart:
+      enabled: true
+
+logging:
+  level:
+    com.shou.lims: debug
+    org.springframework.security: debug
