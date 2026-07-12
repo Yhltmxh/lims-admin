@@ -64,7 +64,7 @@ public class RoleController {
     @PostMapping("/{id}/permissions")
     @Operation(summary = "分配权限")
     @PreAuthorize("hasAuthority('organize:role')")
-    public Result<Void> assignPermissions(@PathVariable Long id, @RequestBody List<Long> permissionIds) {
+    public Result<Void> assignPermissions(@PathVariable Long id, @RequestBody @NotEmpty List<Long> permissionIds) {
         roleService.assignPermissions(id, permissionIds);
         return Result.success();
     }
@@ -72,7 +72,7 @@ public class RoleController {
     @PostMapping("/{id}/menus")
     @Operation(summary = "分配菜单")
     @PreAuthorize("hasAuthority('organize:role')")
-    public Result<Void> assignMenus(@PathVariable Long id, @RequestBody List<Long> menuIds) {
+    public Result<Void> assignMenus(@PathVariable Long id, @RequestBody @NotEmpty List<Long> menuIds) {
         roleService.assignMenus(id, menuIds);
         return Result.success();
     }

@@ -3,7 +3,6 @@ package com.shou.lims.security.config;
 import com.shou.lims.security.filter.JwtAuthFilter;
 import com.shou.lims.security.handler.AccessDeniedHandler;
 import com.shou.lims.security.handler.AuthenticationFailureHandler;
-import com.shou.lims.security.handler.LoginSuccessHandler;
 import com.shou.lims.security.jwt.JwtAccessTokenProperties;
 import com.shou.lims.security.jwt.JwtRefreshTokenProperties;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-    private final LoginSuccessHandler loginSuccessHandler;
     private final AuthenticationFailureHandler authenticationFailureHandler;
     private final AccessDeniedHandler accessDeniedHandler;
 
@@ -43,13 +41,6 @@ public class SecurityConfig {
                     .requestMatchers("/auth/login", "/auth/refresh", "/auth/public-key",
                             "/doc.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
                     .anyRequest().authenticated()
-            )
-            .formLogin(form -> form
-                    .loginProcessingUrl("/auth/login")
-                    .successHandler(loginSuccessHandler)
-                    .failureHandler((request, response, exception) -> {
-                        authenticationFailureHandler.commence(request, response, exception);
-                    })
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex

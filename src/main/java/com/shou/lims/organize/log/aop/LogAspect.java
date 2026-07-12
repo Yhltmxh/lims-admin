@@ -1,14 +1,14 @@
 package com.shou.lims.organize.log.aop;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shou.lims.common.util.SecurityUtils;
 import com.shou.lims.organize.log.annotation.Log;
-import com.shou.lims.organize.log.mapper.LogMapper;
+import com.shou.lims.organize.log.service.LogSaveService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -18,7 +18,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @RequiredArgsConstructor
 public class LogAspect {
 
-    private final LogMapper logMapper;
+    private final LogSaveService logSaveService;
+    private final ObjectMapper objectMapper;
 
     @Around("@annotation(log)")
     public Object around(ProceedingJoinPoint joinPoint, Log log) throws Throwable {
@@ -28,6 +29,7 @@ public class LogAspect {
         logEntity.setAction(log.action());
         logEntity.setUsername(SecurityUtils.getCurrentUsername());
         logEntity.setUserId(SecurityUtils.getCurrentUserId());
+        logEntity.setParams(objectMapper.writeValueAsString(joinPoint.getArgs()));
 
         try {
             HttpServletRequest request = ((ServletRequestAttributes)
@@ -48,12 +50,7 @@ public class LogAspect {
             logEntity.setResult(t.getMessage());
             throw t;
         } finally {
-            saveLog(logEntity);
+            logSaveService.saveLog(logEntity);
         }
-    }
-
-    @Async
-    protected void saveLog(com.shou.lims.organize.log.entity.Log logEntity) {
-        logMapper.insert(logEntity);
     }
 }
