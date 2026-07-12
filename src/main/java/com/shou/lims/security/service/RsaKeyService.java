@@ -1,0 +1,58 @@
+package com.shou.lims.security.service;
+
+import com.shou.lims.common.cache.CacheService;
+import com.shou.lims.common.constant.GlobalConstants;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.util.Base64;
+import java.util.concurrent.TimeUnit;
+
+@Component
+@RequiredArgsConstructor
+public class RsaKeyService {
+
+    private final CacheService cacheService;
+
+    public record RsaKeyPair(String keyId, String publicKey) {}
+
+    public RsaKeyPair generateKeyPair() {
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(2048);
+            KeyPair keyPair = generator.generateKeyPair();
+
+            String keyId = java.util.UUID.randomUUID().toString();
+            String publicKey = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
+
+            // Cache private key in Redis, TTL 5 minutes
+            cacheService.set(GlobalConstants.REDIS_RSA_KEY_PREFIX + keyId,
+                    keyPair.getPrivate().getEncoded(), 5, TimeUnit.MINUTES);
+
+            return new RsaKeyPair(keyId, publicKey);
+        } catch (Exception e) {
+            throw new RuntimeException("RSA密钥生成失败", e);
+        }
+    }
+
+    public String decrypt(String keyId, String cipherText) {
+        byte[] privateKeyBytes = cacheService.get(GlobalConstants.REDIS_RSA_KEY_PREFIX + keyId);
+        if (privateKeyBytes == null) {
+            throw new RuntimeException("RSA密钥已过期");
+        }
+        // Delete private key after use (one-time use)
+        cacheService.delete(GlobalConstants.REDIS_RSA_KEY_PREFIX + keyId);
+
+        try {
+            java.security.spec.PKCS8EncodedKeySpec spec = new java.security.spec.PKCS8EncodedKeySpec(privateKeyBytes);
+            java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("RSA");
+            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, keyFactory.generatePrivate(spec));
+            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(cipherText));
+            return new String(decrypted);
+        } catch (Exception e) {
+            throw new RuntimeException("RSA解密失败", e);
+        }
+    }
+}
