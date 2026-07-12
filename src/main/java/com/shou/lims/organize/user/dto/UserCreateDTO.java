@@ -3,7 +3,6 @@ package com.shou.lims.organize.user.dto;
 import com.shou.lims.common.validation.Phone;
 import jakarta.validation.constraints.*;
 import lombok.Data;
-
 import java.util.List;
 
 @Data

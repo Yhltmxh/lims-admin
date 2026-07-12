@@ -1,7 +1,6 @@
 package com.shou.lims.organize.user.vo;
 
 import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.List;
 

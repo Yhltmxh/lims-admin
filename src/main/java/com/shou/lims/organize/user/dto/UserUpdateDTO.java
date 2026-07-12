@@ -1,7 +1,6 @@
 package com.shou.lims.organize.user.dto;
 
 import lombok.Data;
-
 import java.util.List;
 
 @Data
