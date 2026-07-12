@@ -1,0 +1,63 @@
+package com.shou.lims.organize.user.controller;
+
+import com.shou.lims.common.response.PageVO;
+import com.shou.lims.common.response.Result;
+import com.shou.lims.organize.user.dto.UserCreateDTO;
+import com.shou.lims.organize.user.dto.UserQueryDTO;
+import com.shou.lims.organize.user.dto.UserUpdateDTO;
+import com.shou.lims.organize.user.service.UserService;
+import com.shou.lims.organize.user.vo.UserVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/system/users")
+@RequiredArgsConstructor
+@Tag(name = "用户管理")
+public class UserController {
+
+    private final UserService userService;
+
+    @GetMapping
+    @Operation(summary = "分页查询用户")
+    @PreAuthorize("hasAuthority('organize:user')")
+    public Result<PageVO<UserVO>> list(@Valid UserQueryDTO query) {
+        return Result.success(userService.page(query));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "获取用户详情")
+    @PreAuthorize("hasAuthority('organize:user')")
+    public Result<UserVO> getById(@PathVariable Long id) {
+        return Result.success(userService.getById(id));
+    }
+
+    @PostMapping
+    @Operation(summary = "新增用户")
+    @PreAuthorize("hasAuthority('organize:user:add')")
+    public Result<Long> create(@Valid @RequestBody UserCreateDTO dto) {
+        return Result.success(userService.create(dto));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "编辑用户")
+    @PreAuthorize("hasAuthority('organize:user:edit')")
+    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody UserUpdateDTO dto) {
+        userService.update(id, dto);
+        return Result.success();
+    }
+
+    @DeleteMapping
+    @Operation(summary = "批量删除用户")
+    @PreAuthorize("hasAuthority('organize:user:del')")
+    public Result<Void> delete(@RequestBody @NotEmpty List<Long> ids) {
+        userService.delete(ids);
+        return Result.success();
+    }
+}
