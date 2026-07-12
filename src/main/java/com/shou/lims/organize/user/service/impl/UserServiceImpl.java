@@ -47,7 +47,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserVO getById(Long id) {
         User user = userMapper.selectById(id);
-        if (user == null || StatusEnum.DISABLED.getValue().equals(user.getIsDelete())) {
+        if (user == null || StatusEnum.DISABLED.getValue().equals(user.getStatus())) {
             throw new NotFoundException("用户不存在");
         }
         return userConverter.toVO(user);
@@ -107,9 +107,7 @@ public class UserServiceImpl implements UserService {
      * TODO: This is a placeholder — needs a RoleAssignmentMapper or raw SQL for sys_user_role table.
      */
     private void assignRoles(Long userId, List<Long> roleIds) {
-        // Delete existing associations
-        userMapper.delete(new LambdaQueryWrapper<User>()
-                .eq(User::getId, userId));
-        // Re-insert via role mapper in a real implementation
+        // TODO: Replace with RoleAssignmentMapper or raw SQL for sys_user_role table
+        // WARNING: Do NOT use userMapper.delete() here — that would logic-delete the user, not role assignments.
     }
 }
