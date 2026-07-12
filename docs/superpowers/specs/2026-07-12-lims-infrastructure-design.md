@@ -30,7 +30,43 @@
 
 ---
 
-## 一、技术选型与依赖版本
+## 一、开发流程规范
+
+以下流程为团队强制规范，新功能开发和 Bug 修复必须逐步执行对应 skill，禁止口头说"按流程"而跳过。
+
+### 1.1 新功能开发 9 步
+
+| 步骤 | 操作 | 说明 |
+|------|------|------|
+| 1 | `superpowers:brainstorming` | 讨论需求，产出设计文档 |
+| 2 | `superpowers:writing-plans` | 生成实现计划（含验收用例） |
+| 3 | `superpowers:test-driven-development` | **先写测试，再写代码** |
+| 4 | `superpowers:executing-plans` + `verification-before-completion` | 按 Phase 执行，每个 Phase 验证通过后立即 commit |
+| 5 | `superpowers:verification-before-completion` | 整体完成前验证 |
+| 6 | `superpowers:requesting-code-review` | 代码审查（PR 必须带用例） |
+| 7 | 输出技术细节总结 | DDL / 新增接口 / 新增 Job / 新增配置 → `docs/technical_decisions/` |
+| 8 | 输出学习总结 | → Memory |
+| 9 | `/git-commit-push` | 提交并推送 |
+
+**军规：无用例不合并，用例先于代码存在。**
+
+### 1.2 Bug 修复 7 步
+
+| 步骤 | 操作 | 说明 |
+|------|------|------|
+| 1 | `superpowers:systematic-debugging` | 分析根因，**不直接改代码** |
+| 2 | `superpowers:test-driven-development` | 写复现测试（**FAIL**） |
+| 3 | 修复代码 | 让复现测试 **PASS** |
+| 4 | 回归验证 | 编译 + 相关模块测试全部通过 |
+| 5 | `superpowers:verification-before-completion` | 整体验证 |
+| 6 | 检查影响范围 | `grep` 所有调用点 |
+| 7 | commit | 提交修复 |
+
+**禁止：** 出错后直接重试、不看日志就改代码、同时改多处。
+
+---
+
+## 二、技术选型与依赖版本
 
 ### 1.1 环境
 
@@ -64,7 +100,7 @@
 
 ---
 
-## 二、项目结构设计
+## 三、项目结构设计
 
 ### 2.1 完整目录树
 
@@ -153,7 +189,7 @@ public Result<Long> create(@Valid @RequestBody UserCreateDTO dto) {
 
 ---
 
-## 三、环境配置
+## 四、环境配置
 
 ### 3.1 application.yml
 
@@ -248,7 +284,7 @@ src/main/resources/
 
 ---
 
-## 四、公共模块（common）设计
+## 五、公共模块（common）设计
 
 ### 4.1 统一响应体 `Result<T>`
 
@@ -353,7 +389,7 @@ public class PageVO<T> {
 
 ---
 
-## 五、安全模块（security）设计
+## 六、安全模块（security）设计
 
 ### 5.1 双 Token 流程
 
@@ -445,7 +481,7 @@ public class SecurityConfig {
 
 ---
 
-## 六、RBAC 数据表设计
+## 七、RBAC 数据表设计
 
 ### 6.1 表关系
 
@@ -593,7 +629,7 @@ CREATE INDEX idx_sys_log_created_at ON sys_log(created_at);
 
 ---
 
-## 七、编码规范
+## 八、编码规范
 
 以下规范部分来自团队通用 CLAUDE.md，部分针对本项目技术栈定制。**标注"强制"的必须遵守。**
 
@@ -665,7 +701,7 @@ CREATE INDEX idx_sys_log_created_at ON sys_log(created_at);
 
 ---
 
-## 八、System 模块接口清单
+## 九、System 模块接口清单
 
 | 模块 | 基础 URL | 主要接口 |
 |------|----------|----------|
@@ -679,7 +715,7 @@ CREATE INDEX idx_sys_log_created_at ON sys_log(created_at);
 
 ---
 
-## 九、初始化脚本
+## 十、初始化脚本
 
 ### 9.1 SQL 执行顺序
 
@@ -699,7 +735,7 @@ CREATE INDEX idx_sys_log_created_at ON sys_log(created_at);
 
 ---
 
-## 十、配置类清单
+## 十一、配置类清单
 
 | 类 | 包路径 | 职责 |
 |----|--------|------|
@@ -713,7 +749,7 @@ CREATE INDEX idx_sys_log_created_at ON sys_log(created_at);
 
 ---
 
-## 十一、开发工具
+## 十二、开发工具
 
 | 工具 | 用途 | 访问地址 |
 |------|------|----------|
