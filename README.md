@@ -13,7 +13,7 @@
 | 数据库 | IvorySQL 3.4（兼容 PostgreSQL） |
 | 缓存 | Redis 7.x |
 | JWT | java-jwt 4.5.0（Auth0） |
-| API 文档 | Knife4j 4.5.0 |
+| API 文档 | SpringDoc 2.8.0 + Swagger UI |
 | 对象映射 | MapStruct 1.6.3 |
 | 分页 | PageHelper 2.1.0 |
 | 工具库 | Guava, Commons Lang3, Commons Collections4 |
@@ -45,9 +45,9 @@ psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/init.sql
 
 ### 访问 API 文档
 
-启动后访问：`http://localhost:8080/doc.html`
+启动后访问：`http://localhost:8080/swagger-ui.html`
 
-Knife4j 提供在线 API 调试界面，可直接测试所有接口。
+Swagger UI 提供在线 API 调试界面，可直接测试所有接口。
 
 ---
 
