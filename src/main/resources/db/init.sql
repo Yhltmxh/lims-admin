@@ -169,10 +169,10 @@ INSERT INTO sys_role (name, label, description) VALUES
 
 -- 用户（密码均为 BCrypt 加密的 "123456"）
 INSERT INTO sys_user (username, password, real_name, dept_id, create_by, update_by) VALUES
-('admin',    '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5Eh', '系统管理员', 1, 0, 0),
-('liming',   '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5Eh', '李明',       2, 0, 0),
-('wangfang', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5Eh', '王芳',       3, 0, 0),
-('zhaoqiang','$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5Eh', '赵强',       4, 0, 0);
+('admin',    '$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '系统管理员', 1, 0, 0),
+('liming',   '$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '李明',       2, 0, 0),
+('wangfang', '$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '王芳',       3, 0, 0),
+('zhaoqiang','$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '赵强',       4, 0, 0);
 
 -- 权限
 INSERT INTO sys_permission (name, code, type, create_by, update_by) VALUES
