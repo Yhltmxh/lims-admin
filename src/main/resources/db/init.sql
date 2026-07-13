@@ -2,6 +2,20 @@
 -- LIMS 基础设施数据库初始化脚本
 -- IvorySQL (PostgreSQL compatible)
 -- ============================================
+--
+-- 执行方式：
+--   psql -h 127.0.0.1 -U ivorysql -d postgres -f init.sql
+--   （以 superuser 连接到默认库 postgres，脚本会自动建库并切换）
+--
+
+-- 创建数据库（如已存在则跳过）
+SELECT 'CREATE DATABASE lims'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'lims')\gexec
+
+-- 切换到 lims 库
+\c lims
+
+-- ============================================
 
 -- 部门表
 CREATE TABLE IF NOT EXISTS sys_dept (
