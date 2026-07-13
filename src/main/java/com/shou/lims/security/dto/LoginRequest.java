@@ -11,6 +11,6 @@ public class LoginRequest {
     @NotBlank(message = "密码不能为空")
     private String cipherPwd;
 
-    @NotBlank(message = "密钥ID不能为空")
+    /** dev环境可留空，此时cipherPwd直接作为明文密码 */
     private String keyId;
 }
