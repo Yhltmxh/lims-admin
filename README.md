@@ -10,7 +10,7 @@
 | Spring Boot | 3.5.16 |
 | Spring Security | 6.5.x（Spring Boot 托管） |
 | MyBatis-Plus | 3.5.12 |
-| 数据库 | IvorySQL 3.4（兼容 PostgreSQL） |
+| 数据库 | IvorySQL 5.4（兼容 PostgreSQL） |
 | 缓存 | Redis 7.x |
 | JWT | java-jwt 4.5.0（Auth0） |
 | API 文档 | SpringDoc 2.8.0 + Swagger UI |
@@ -47,7 +47,7 @@ psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/init.sql
 
 启动后访问：`http://localhost:8080/swagger-ui.html`
 
-Swagger UI 提供在线 API 调试界面，可直接测试所有接口。
+Swagger UI 提供在线 API 调试界面。调试需鉴权的接口时，先调用 `/auth/login` 获取 Token，然后点击页面右上角 **Authorize** 按钮填入 AccessToken（不含 Bearer 前缀），后续所有请求将自动携带 `Authorization` 请求头。
 
 ---
 
@@ -123,7 +123,7 @@ src/main/java/com/shou/lims/
 |------|------|------|------|
 | GET | `/auth/public-key` | 获取 RSA 公钥（用于前端加密登录密码） | 公开 |
 | POST | `/auth/login` | 登录（加密密码传输）| 公开 |
-| POST | `/auth/refresh` | 刷新令牌 | 公开 |
+| POST | `/auth/refresh` | 刷新令牌（需携带 Authorization Header，可为已过期的 AccessToken）| 公开 |
 | POST | `/auth/logout` | 注销 | 需登录 |
 | GET | `/auth/me` | 获取当前用户信息 | 需登录 |
 
@@ -172,8 +172,8 @@ src/main/java/com/shou/lims/
 2. 前端用公钥加密密码 → 调用 `POST /auth/login` 传入 `{ username, cipherPwd, keyId }`
 3. 后端解密 → BCrypt 验证 → 返回 `{ accessToken, refreshToken, expiresIn: 900 }`
 4. 前端存储双 Token → 后续请求在 Header 中携带 `Authorization: Bearer <accessToken>`
-5. AccessToken 过期（15 分钟）→ 前端调用 `POST /auth/refresh` 用 RefreshToken 换取新 Token
-6. RefreshToken 过期（7 天）→ 跳转登录页
+5. AccessToken 过期（15 分钟）→ 前端调用 `POST /auth/refresh`，Header 携带已过期的 AccessToken，Body 传 `{ refreshToken }`，换取新双 Token
+6. RefreshToken 过期（7 天）或 RefreshToken 校验失败 → 跳转登录页
 
 ### 3. 分页规范
 

@@ -23,7 +23,7 @@ public class LogServiceImpl implements LogService {
     @Override
     public CursorPageVO<LogVO> page(LogQueryDTO query) {
         int pageSize = query.getPageSize() != null ? query.getPageSize() : 10;
-        Long cursor = query.getPageNum() != null ? query.getPageNum().longValue() : 0L;
+        Long cursor = query.getLastId() != null ? query.getLastId() : 0L;
 
         LambdaQueryWrapper<Log> wrapper = new LambdaQueryWrapper<Log>()
                 .eq(Log::getIsDelete, 0)

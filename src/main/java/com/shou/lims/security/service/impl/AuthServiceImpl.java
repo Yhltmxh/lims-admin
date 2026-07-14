@@ -1,6 +1,6 @@
 package com.shou.lims.security.service.impl;
 
-import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.shou.lims.common.exception.UnauthorizedException;
 import com.shou.lims.common.util.SecurityUtils;
 import com.shou.lims.organize.role.entity.Role;
@@ -58,9 +58,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public LoginVO refresh(String refreshToken) {
-        // Extract userId from the current (expired) access token
-        Long userId = SecurityUtils.getCurrentUserId();
+    public LoginVO refresh(String accessToken, String refreshToken) {
+        // Decode userId from the (possibly expired) access token without verification
+        Long userId;
+        try {
+            userId = jwtTokenService.extractUserId(accessToken);
+        } catch (JWTDecodeException | NumberFormatException e) {
+            throw new UnauthorizedException();
+        }
 
         if (!refreshTokenService.validate(userId, refreshToken)) {
             throw new UnauthorizedException();
@@ -87,6 +92,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void logout(String accessToken) {
         Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == 0L) {
+            return; // anonymous, nothing to revoke
+        }
         refreshTokenService.revoke(userId);
 
         // TODO: Blacklist access token via CacheService — will be fully implemented in Phase 5

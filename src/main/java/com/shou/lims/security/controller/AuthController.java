@@ -53,8 +53,10 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @Operation(summary = "刷新Token")
-    public Result<LoginVO> refresh(@Valid @RequestBody RefreshRequest request) {
-        return Result.success(authService.refresh(request.getRefreshToken()));
+    public Result<LoginVO> refresh(@RequestHeader("Authorization") String authHeader,
+                                   @Valid @RequestBody RefreshRequest request) {
+        String token = authHeader.replace("Bearer ", "");
+        return Result.success(authService.refresh(token, request.getRefreshToken()));
     }
 
     @PostMapping("/logout")

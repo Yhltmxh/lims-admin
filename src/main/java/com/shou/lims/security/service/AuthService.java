@@ -5,7 +5,7 @@ import com.shou.lims.security.vo.UserInfoVO;
 
 public interface AuthService {
     LoginVO login(String username, String rawPassword);
-    LoginVO refresh(String refreshToken);
+    LoginVO refresh(String accessToken, String refreshToken);
     void logout(String accessToken);
     UserInfoVO getCurrentUserInfo();
 }

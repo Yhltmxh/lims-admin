@@ -42,6 +42,16 @@ public class JwtTokenService {
         }
     }
 
+    /**
+     * Decode a (possibly expired) access token without verification,
+     * extracting only the userId subject claim.
+     * Used by refresh endpoint when the access token is expired.
+     */
+    public Long extractUserId(String token) {
+        DecodedJWT jwt = JWT.decode(token);
+        return Long.valueOf(jwt.getSubject());
+    }
+
     public String generateRefreshToken() {
         byte[] bytes = new byte[32]; // 256 bits
         secureRandom.nextBytes(bytes);
