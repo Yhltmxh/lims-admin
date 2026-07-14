@@ -1,7 +1,10 @@
 package com.shou.lims.security.service.impl;
 
 import com.auth0.jwt.exceptions.JWTDecodeException;
+import com.shou.lims.common.enums.StatusEnum;
 import com.shou.lims.common.exception.UnauthorizedException;
+import com.shou.lims.organize.permission.entity.Permission;
+import com.shou.lims.organize.permission.mapper.PermissionMapper;
 import com.shou.lims.common.util.SecurityUtils;
 import com.shou.lims.organize.role.entity.Role;
 import com.shou.lims.organize.role.mapper.RoleMapper;
@@ -33,6 +36,7 @@ public class AuthServiceImpl implements AuthService {
     private final RsaKeyService rsaKeyService;
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
+    private final PermissionMapper permissionMapper;
 
     @Override
     public LoginVO login(String username, String rawPassword) {
@@ -75,13 +79,14 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenService.revoke(userId);
 
         User user = userMapper.selectById(userId);
-        List<Role> roles = roleMapper.selectByUserId(userId);
-        List<String> permissions = roles.stream()
-                .map(Role::getName)
+        List<Permission> permissions = permissionMapper.selectByUserId(userId);
+        List<String> permissionCodes = permissions.stream()
+                .filter(p -> StatusEnum.ENABLED.getValue().equals(p.getStatus()))
+                .map(Permission::getCode)
                 .toList();
 
         String newAccessToken = jwtTokenService.generateAccessToken(
-                userId, user.getUsername(), permissions);
+                userId, user.getUsername(), permissionCodes);
         String newRefreshToken = jwtTokenService.generateRefreshToken();
 
         refreshTokenService.store(userId, newRefreshToken);
