@@ -29,7 +29,12 @@ public class LogAspect {
         logEntity.setAction(log.action());
         logEntity.setUsername(SecurityUtils.getCurrentUsername());
         logEntity.setUserId(SecurityUtils.getCurrentUserId());
-        logEntity.setParams(objectMapper.writeValueAsString(joinPoint.getArgs()));
+
+        try {
+            logEntity.setParams(objectMapper.writeValueAsString(joinPoint.getArgs()));
+        } catch (Exception e) {
+            logEntity.setParams("[serialization failed: " + e.getMessage() + "]");
+        }
 
         try {
             HttpServletRequest request = ((ServletRequestAttributes)
