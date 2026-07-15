@@ -176,14 +176,26 @@ INSERT INTO sys_user (username, password, real_name, dept_id, create_by, update_
 
 -- 权限
 INSERT INTO sys_permission (name, code, type, create_by, update_by) VALUES
-('用户管理', 'organize:user',      1, 0, 0),
-('新增用户', 'organize:user:add',  2, 0, 0),
-('编辑用户', 'organize:user:edit', 2, 0, 0),
-('删除用户', 'organize:user:del',  2, 0, 0),
-('角色管理', 'organize:role',      1, 0, 0),
-('部门管理', 'organize:dept',      1, 0, 0),
-('菜单管理', 'organize:menu',      1, 0, 0),
-('权限管理', 'organize:permission', 1, 0, 0);
+('用户管理', 'organize:user',            1, 0, 0),
+('新增用户', 'organize:user:add',        2, 0, 0),
+('编辑用户', 'organize:user:edit',       2, 0, 0),
+('删除用户', 'organize:user:del',        2, 0, 0),
+('角色管理', 'organize:role',            1, 0, 0),
+('新增角色', 'organize:role:add',        2, 0, 0),
+('编辑角色', 'organize:role:edit',       2, 0, 0),
+('删除角色', 'organize:role:del',        2, 0, 0),
+('部门管理', 'organize:dept',            1, 0, 0),
+('新增部门', 'organize:dept:add',        2, 0, 0),
+('编辑部门', 'organize:dept:edit',       2, 0, 0),
+('删除部门', 'organize:dept:del',        2, 0, 0),
+('菜单管理', 'organize:menu',            1, 0, 0),
+('新增菜单', 'organize:menu:add',        2, 0, 0),
+('编辑菜单', 'organize:menu:edit',       2, 0, 0),
+('删除菜单', 'organize:menu:del',        2, 0, 0),
+('权限管理', 'organize:permission',      1, 0, 0),
+('新增权限', 'organize:permission:add',  2, 0, 0),
+('编辑权限', 'organize:permission:edit', 2, 0, 0),
+('删除权限', 'organize:permission:del',  2, 0, 0);
 
 -- 菜单
 INSERT INTO sys_menu (name, path, component, icon, create_by, update_by) VALUES
@@ -195,8 +207,8 @@ INSERT INTO sys_menu (name, path, component, icon, create_by, update_by) VALUES
 INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1);
 
 -- ROLE_ADMIN 拥有所有权限
-INSERT INTO sys_role_permission (role_id, permission_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8);
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission;
 
 -- ROLE_ADMIN 拥有所有菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
