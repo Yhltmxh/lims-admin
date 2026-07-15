@@ -66,17 +66,14 @@ class JwtAuthFilterTest extends BaseSpringBootTest {
     void shouldRejectUserWithoutRequiredPermission() throws Exception {
         String token = tokenFor("liming", "123456");
         // Authenticated user lacking the required authority: @PreAuthorize throws
-        // AccessDeniedException during controller invocation, which is caught by the
-        // @RestControllerAdvice GlobalExceptionHandler (inside the DispatcherServlet)
-        // BEFORE it can reach the security filter's AccessDeniedHandler. The advice
-        // returns HTTP 200 with a body whose code=403 ("无访问权限"). A valid request
-        // body is required so the request passes @Valid validation and actually reaches
-        // the authorization check (an invalid body would short-circuit with code=400).
+        // AccessDeniedException during controller invocation, caught by the
+        // @RestControllerAdvice which has @ResponseStatus(HttpStatus.FORBIDDEN)
+        // — returns a real HTTP 403 with the body code=403.
         mockMvc.perform(post("/system/users")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"tester\",\"password\":\"123456\",\"realName\":\"Tester\",\"roleIds\":[1]}"))
-                .andExpect(status().isOk())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403));
     }
 }
