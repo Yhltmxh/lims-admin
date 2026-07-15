@@ -81,7 +81,9 @@ public class MenuServiceImpl implements MenuService {
         if (dto.getSortOrder() != null) menu.setSortOrder(dto.getSortOrder());
         if (dto.getHidden() != null) menu.setHidden(dto.getHidden());
         if (dto.getStatus() != null) menu.setStatus(dto.getStatus());
-        menuMapper.updateById(menu);
+        if (menuMapper.updateById(menu) == 0) {
+            throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
+        }
     }
 
     @Override

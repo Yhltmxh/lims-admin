@@ -88,7 +88,9 @@ public class UserServiceImpl implements UserService {
         if (dto.getGender() != null) user.setGender(dto.getGender());
         if (dto.getDeptId() != null) user.setDeptId(dto.getDeptId());
         if (dto.getStatus() != null) user.setStatus(dto.getStatus());
-        userMapper.updateById(user);
+        if (userMapper.updateById(user) == 0) {
+            throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
+        }
 
         if (dto.getRoleIds() != null) {
             // Reassign roles: delete old, insert new

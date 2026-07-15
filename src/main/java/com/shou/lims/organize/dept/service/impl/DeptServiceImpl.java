@@ -79,7 +79,9 @@ public class DeptServiceImpl implements DeptService {
         if (dto.getLeader() != null) dept.setLeader(dto.getLeader());
         if (dto.getPhone() != null) dept.setPhone(dto.getPhone());
         if (dto.getStatus() != null) dept.setStatus(dto.getStatus());
-        deptMapper.updateById(dept);
+        if (deptMapper.updateById(dept) == 0) {
+            throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
+        }
     }
 
     @Override

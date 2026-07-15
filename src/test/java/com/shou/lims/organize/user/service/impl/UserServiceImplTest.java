@@ -7,6 +7,8 @@ import com.shou.lims.common.response.PageVO;
 import com.shou.lims.organize.user.dto.UserCreateDTO;
 import com.shou.lims.organize.user.dto.UserQueryDTO;
 import com.shou.lims.organize.user.dto.UserUpdateDTO;
+import com.shou.lims.organize.user.entity.User;
+import com.shou.lims.organize.user.mapper.UserMapper;
 import com.shou.lims.organize.user.service.UserService;
 import com.shou.lims.organize.user.vo.UserVO;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,8 @@ class UserServiceImplTest extends BaseSpringBootTest {
 
     @Autowired
     private UserService userService;
+    @Autowired
+    private UserMapper userMapper;
 
     @Test
     void shouldPageUsers() {
@@ -111,5 +115,25 @@ class UserServiceImplTest extends BaseSpringBootTest {
     @Test
     void shouldNotThrowOnDeleteEmptyList() {
         assertThatCode(() -> userService.delete(List.of())).doesNotThrowAnyException();
+    }
+
+    @Test
+    void shouldRejectStaleVersionUpdate() {
+        // Optimistic locking: an update carrying an out-of-date version affects 0
+        // rows, which the service layer now turns into a 409 BusinessException.
+        User user = userMapper.selectById(1L);
+        Integer staleVersion = user.getVersion(); // capture BEFORE any update
+        assertThat(staleVersion).isNotNull();
+
+        // A valid update bumps the DB version past staleVersion.
+        user.setRealName("v1");
+        assertThat(userMapper.updateById(user)).isEqualTo(1);
+
+        // A fresh entity carrying the now-stale version must be rejected by optlock.
+        User staleUpdate = new User();
+        staleUpdate.setId(1L);
+        staleUpdate.setVersion(staleVersion);
+        staleUpdate.setRealName("v2");
+        assertThat(userMapper.updateById(staleUpdate)).isEqualTo(0);
     }
 }

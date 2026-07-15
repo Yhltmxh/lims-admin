@@ -80,7 +80,9 @@ public class RoleServiceImpl implements RoleService {
         if (StringUtils.isNotBlank(dto.getLabel())) role.setLabel(dto.getLabel());
         if (dto.getDescription() != null) role.setDescription(dto.getDescription());
         if (dto.getStatus() != null) role.setStatus(dto.getStatus());
-        roleMapper.updateById(role);
+        if (roleMapper.updateById(role) == 0) {
+            throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
+        }
 
         if (dto.getPermissionIds() != null) {
             assignPermissions(id, dto.getPermissionIds());

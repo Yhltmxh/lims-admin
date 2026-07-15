@@ -77,7 +77,9 @@ public class PermissionServiceImpl implements PermissionService {
         if (dto.getParentId() != null) permission.setParentId(dto.getParentId());
         if (dto.getSortOrder() != null) permission.setSortOrder(dto.getSortOrder());
         if (dto.getStatus() != null) permission.setStatus(dto.getStatus());
-        permissionMapper.updateById(permission);
+        if (permissionMapper.updateById(permission) == 0) {
+            throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
+        }
     }
 
     @Override
