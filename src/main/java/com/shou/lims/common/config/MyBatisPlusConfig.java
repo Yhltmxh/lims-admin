@@ -15,8 +15,9 @@ public class MyBatisPlusConfig {
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        // Optimistic lock interceptor must be registered before pagination (MyBatis-Plus ordering).
-        // BaseEntity declares @Version, so updateById generates an optlock clause that this populates.
+        // BaseEntity declares @Version, so updateById generates an optimistic-lock
+        // clause that this interceptor populates. Order relative to pagination is
+        // irrelevant here (pagination rewrites SELECTs, optlock rewrites UPDATEs).
         interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
         PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.POSTGRE_SQL);
         pagination.setMaxLimit(200L);
