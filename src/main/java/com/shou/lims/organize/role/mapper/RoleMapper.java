@@ -26,4 +26,10 @@ public interface RoleMapper extends BaseMapper<Role> {
 
     @Insert("INSERT INTO sys_role_menu (role_id, menu_id) VALUES (#{roleId}, #{menuId})")
     void insertRoleMenu(@Param("roleId") Long roleId, @Param("menuId") Long menuId);
+
+    @Select("SELECT permission_id FROM sys_role_permission WHERE role_id = #{roleId}")
+    List<Long> selectRolePermissionIds(@Param("roleId") Long roleId);
+
+    @Select("SELECT menu_id FROM sys_role_menu WHERE role_id = #{roleId}")
+    List<Long> selectRoleMenuIds(@Param("roleId") Long roleId);
 }
