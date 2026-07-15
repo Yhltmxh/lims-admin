@@ -39,4 +39,26 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.code").value(500))
                 .andExpect(jsonPath("$.message").value("系统内部错误"));
     }
+
+    @Test
+    void shouldReturn409ForBusinessException() throws Exception {
+        mockMvc.perform(get("/test/business-409").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.message").value("数据冲突"));
+    }
+
+    @Test
+    void shouldReturn401ForUnauthorizedException() throws Exception {
+        mockMvc.perform(get("/test/unauthorized").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(401));
+    }
+
+    @Test
+    void shouldReturn403ForForbiddenException() throws Exception {
+        mockMvc.perform(get("/test/forbidden").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403));
+    }
 }

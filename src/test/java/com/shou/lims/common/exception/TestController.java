@@ -17,4 +17,19 @@ class TestController {
     public String unknownError() {
         throw new RuntimeException("boom");
     }
+
+    @GetMapping("/business-409")
+    public String business409() {
+        throw new BusinessException(409, "数据冲突");
+    }
+
+    @GetMapping("/unauthorized")
+    public String unauthorized() {
+        throw new UnauthorizedException();
+    }
+
+    @GetMapping("/forbidden")
+    public String forbidden() {
+        throw new ForbiddenException();
+    }
 }
