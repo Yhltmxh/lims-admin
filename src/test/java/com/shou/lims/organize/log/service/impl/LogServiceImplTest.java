@@ -62,13 +62,11 @@ class LogServiceImplTest extends BaseSpringBootTest {
         query2.setLastId(page1.getNextCursor());
         CursorPageVO<LogVO> page2 = logService.page(query2);
 
-        // 注意：LogServiceImpl.page 存在游标方向缺陷 —— 排序为 ORDER BY id DESC，
-        // 但翻页条件却是 id > cursor（正确应为 id < cursor）。
-        // 实测：page1 返回 ids=[N, N-1]、nextCursor=N-1；page2 用 lastId=N-1 查询
-        // 得到 WHERE id > N-1，仅返回 [N]（即第一页已出现过的记录），且 hasMore=false，
-        // 之后的记录（N-2 及更早）永远无法翻到。此处仅断言实际行为（非空），
-        // 该问题已作为潜在生产 bug 上报，修复不属于本测试任务范围。
+        // 游标降序分页：page2 的记录 id 应严格小于 page1 的最小 id，且两页无重叠。
         assertThat(page2.getRecords()).isNotEmpty();
+        long page1MinId = page1.getRecords().stream().mapToLong(LogVO::getId).min().orElseThrow();
+        assertThat(page2.getRecords()).allSatisfy(vo ->
+                assertThat(vo.getId()).isLessThan(page1MinId));
     }
 
     @Test

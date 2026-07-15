@@ -32,7 +32,7 @@ public class LogServiceImpl implements LogService {
                 .eq(StringUtils.isNotBlank(query.getAction()), Log::getAction, query.getAction())
                 .ge(query.getStartTime() != null, Log::getCreateTime, query.getStartTime())
                 .le(query.getEndTime() != null, Log::getCreateTime, query.getEndTime())
-                .gt(cursor > 0, Log::getId, cursor)
+                .lt(cursor > 0, Log::getId, cursor)
                 .orderByDesc(Log::getId)
                 .last("LIMIT " + (pageSize + 1));
 
