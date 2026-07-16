@@ -19,33 +19,33 @@ CREATE TABLE IF NOT EXISTS sys_dept (
     sort_order  INT           DEFAULT 0,
     leader      VARCHAR(32),
     phone       VARCHAR(20),
-    status      SMALLINT      DEFAULT 1,
+    status      SMALLINT      NOT NULL DEFAULT 1 CHECK (status IN (0, 1)),
     create_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     create_by   BIGINT,
     update_by   BIGINT,
-    is_delete   SMALLINT      DEFAULT 0,
-    version     INT           DEFAULT 0
+    is_delete   SMALLINT      NOT NULL DEFAULT 0 CHECK (is_delete IN (0, 1)),
+    version     INT           NOT NULL DEFAULT 0 CHECK (version >= 0)
 );
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS sys_user (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    username    VARCHAR(32)   NOT NULL UNIQUE,
+    username    VARCHAR(32)   NOT NULL,
     password    VARCHAR(128)  NOT NULL,
     real_name   VARCHAR(32),
     phone       VARCHAR(20),
     email       VARCHAR(64),
-    gender      SMALLINT      DEFAULT 0,
+    gender      SMALLINT      NOT NULL DEFAULT 0 CHECK (gender IN (0, 1, 2)),
     avatar      VARCHAR(256),
-    dept_id     BIGINT,
-    status      SMALLINT      DEFAULT 1,
+    dept_id     BIGINT REFERENCES sys_dept(id),
+    status      SMALLINT      NOT NULL DEFAULT 1 CHECK (status IN (0, 1)),
     create_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     create_by   BIGINT,
     update_by   BIGINT,
-    is_delete   SMALLINT      DEFAULT 0,
-    version     INT           DEFAULT 0
+    is_delete   SMALLINT      NOT NULL DEFAULT 0 CHECK (is_delete IN (0, 1)),
+    version     INT           NOT NULL DEFAULT 0 CHECK (version >= 0)
 );
 
 -- 角色表
@@ -54,30 +54,30 @@ CREATE TABLE IF NOT EXISTS sys_role (
     name        VARCHAR(32)   NOT NULL,
     label       VARCHAR(32)   NOT NULL,
     description VARCHAR(128),
-    status      SMALLINT      DEFAULT 1,
+    status      SMALLINT      NOT NULL DEFAULT 1 CHECK (status IN (0, 1)),
     create_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     create_by   BIGINT,
     update_by   BIGINT,
-    is_delete   SMALLINT      DEFAULT 0,
-    version     INT           DEFAULT 0
+    is_delete   SMALLINT      NOT NULL DEFAULT 0 CHECK (is_delete IN (0, 1)),
+    version     INT           NOT NULL DEFAULT 0 CHECK (version >= 0)
 );
 
 -- 权限表
 CREATE TABLE IF NOT EXISTS sys_permission (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name        VARCHAR(64)   NOT NULL,
-    code        VARCHAR(64)   NOT NULL UNIQUE,
-    type        SMALLINT      NOT NULL,
+    code        VARCHAR(64)   NOT NULL,
+    type        SMALLINT      NOT NULL CHECK (type IN (1, 2)),
     parent_id   BIGINT        DEFAULT 0,
     sort_order  INT           DEFAULT 0,
-    status      SMALLINT      DEFAULT 1,
+    status      SMALLINT      NOT NULL DEFAULT 1 CHECK (status IN (0, 1)),
     create_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     create_by   BIGINT,
     update_by   BIGINT,
-    is_delete   SMALLINT      DEFAULT 0,
-    version     INT           DEFAULT 0
+    is_delete   SMALLINT      NOT NULL DEFAULT 0 CHECK (is_delete IN (0, 1)),
+    version     INT           NOT NULL DEFAULT 0 CHECK (version >= 0)
 );
 
 -- 菜单表
@@ -89,37 +89,37 @@ CREATE TABLE IF NOT EXISTS sys_menu (
     component   VARCHAR(128),
     icon        VARCHAR(32),
     sort_order  INT           DEFAULT 0,
-    hidden      SMALLINT      DEFAULT 0,
-    status      SMALLINT      DEFAULT 1,
+    hidden      SMALLINT      NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1)),
+    status      SMALLINT      NOT NULL DEFAULT 1 CHECK (status IN (0, 1)),
     create_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     create_by   BIGINT,
     update_by   BIGINT,
-    is_delete   SMALLINT      DEFAULT 0,
-    version     INT           DEFAULT 0
+    is_delete   SMALLINT      NOT NULL DEFAULT 0 CHECK (is_delete IN (0, 1)),
+    version     INT           NOT NULL DEFAULT 0 CHECK (version >= 0)
 );
 
 -- 用户-角色关联表
 CREATE TABLE IF NOT EXISTS sys_user_role (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id     BIGINT NOT NULL,
-    role_id     BIGINT NOT NULL,
+    user_id     BIGINT NOT NULL REFERENCES sys_user(id) ON DELETE CASCADE,
+    role_id     BIGINT NOT NULL REFERENCES sys_role(id) ON DELETE CASCADE,
     UNIQUE (user_id, role_id)
 );
 
 -- 角色-权限关联表
 CREATE TABLE IF NOT EXISTS sys_role_permission (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    role_id         BIGINT NOT NULL,
-    permission_id   BIGINT NOT NULL,
+    role_id         BIGINT NOT NULL REFERENCES sys_role(id) ON DELETE CASCADE,
+    permission_id   BIGINT NOT NULL REFERENCES sys_permission(id) ON DELETE CASCADE,
     UNIQUE (role_id, permission_id)
 );
 
 -- 角色-菜单关联表
 CREATE TABLE IF NOT EXISTS sys_role_menu (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    role_id     BIGINT NOT NULL,
-    menu_id     BIGINT NOT NULL,
+    role_id     BIGINT NOT NULL REFERENCES sys_role(id) ON DELETE CASCADE,
+    menu_id     BIGINT NOT NULL REFERENCES sys_menu(id) ON DELETE CASCADE,
     UNIQUE (role_id, menu_id)
 );
 
@@ -143,7 +143,11 @@ CREATE TABLE IF NOT EXISTS sys_log (
 -- ============================================
 -- 索引
 -- ============================================
-CREATE INDEX IF NOT EXISTS idx_sys_user_username ON sys_user(username) WHERE is_delete = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_user_username_active ON sys_user(username) WHERE is_delete = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_role_name_active ON sys_role(name) WHERE is_delete = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_permission_code_active ON sys_permission(code) WHERE is_delete = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_dept_name_active ON sys_dept(name) WHERE is_delete = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_menu_name_active ON sys_menu(name) WHERE is_delete = 0;
 CREATE INDEX IF NOT EXISTS idx_sys_user_dept_id  ON sys_user(dept_id)  WHERE is_delete = 0;
 CREATE INDEX IF NOT EXISTS idx_sys_user_status   ON sys_user(status)   WHERE is_delete = 0;
 CREATE INDEX IF NOT EXISTS idx_sys_log_user_id   ON sys_log(user_id)   WHERE is_delete = 0;
@@ -158,58 +162,67 @@ INSERT INTO sys_dept (name, sort_order, leader) VALUES
 ('总公司', 0, '张总'),
 ('检测部', 1, '李经理'),
 ('质控部', 2, '王经理'),
-('综合部', 3, '赵主任');
+('综合部', 3, '赵主任')
+ON CONFLICT DO NOTHING;
 
 -- 角色
 INSERT INTO sys_role (name, label, description) VALUES
 ('ROLE_ADMIN',   '超级管理员', '拥有系统全部权限'),
 ('ROLE_MANAGER', '部门经理',   '管理本部门数据和人员'),
 ('ROLE_SAMPLER', '采样员',     '执行采样任务'),
-('ROLE_ANALYST', '检测员',     '执行检测分析');
+('ROLE_ANALYST', '检测员',     '执行检测分析')
+ON CONFLICT DO NOTHING;
 
 -- 用户（密码均为 BCrypt 加密的 "123456"）
 INSERT INTO sys_user (username, password, real_name, dept_id, create_by, update_by) VALUES
 ('admin',    '$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '系统管理员', 1, 0, 0),
 ('liming',   '$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '李明',       2, 0, 0),
 ('wangfang', '$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '王芳',       3, 0, 0),
-('zhaoqiang','$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '赵强',       4, 0, 0);
+('zhaoqiang','$2a$10$qo5hAj3rXMlzt3KWyLmHgOBKUVo1BxJaxsY6y/jHokOTmMJ1N8vmq', '赵强',       4, 0, 0)
+ON CONFLICT DO NOTHING;
 
 -- 权限
 INSERT INTO sys_permission (name, code, type, create_by, update_by) VALUES
-('用户管理', 'organize:user',            1, 0, 0),
+('用户管理', 'organize:user:list',       1, 0, 0),
 ('新增用户', 'organize:user:add',        2, 0, 0),
 ('编辑用户', 'organize:user:edit',       2, 0, 0),
 ('删除用户', 'organize:user:del',        2, 0, 0),
-('角色管理', 'organize:role',            1, 0, 0),
+('角色管理', 'organize:role:list',       1, 0, 0),
 ('新增角色', 'organize:role:add',        2, 0, 0),
 ('编辑角色', 'organize:role:edit',       2, 0, 0),
 ('删除角色', 'organize:role:del',        2, 0, 0),
-('部门管理', 'organize:dept',            1, 0, 0),
+('部门管理', 'organize:dept:list',       1, 0, 0),
 ('新增部门', 'organize:dept:add',        2, 0, 0),
 ('编辑部门', 'organize:dept:edit',       2, 0, 0),
 ('删除部门', 'organize:dept:del',        2, 0, 0),
-('菜单管理', 'organize:menu',            1, 0, 0),
+('菜单管理', 'organize:menu:list',       1, 0, 0),
 ('新增菜单', 'organize:menu:add',        2, 0, 0),
 ('编辑菜单', 'organize:menu:edit',       2, 0, 0),
 ('删除菜单', 'organize:menu:del',        2, 0, 0),
-('权限管理', 'organize:permission',      1, 0, 0),
+('权限管理', 'organize:permission:list', 1, 0, 0),
 ('新增权限', 'organize:permission:add',  2, 0, 0),
 ('编辑权限', 'organize:permission:edit', 2, 0, 0),
-('删除权限', 'organize:permission:del',  2, 0, 0);
+('删除权限', 'organize:permission:del',  2, 0, 0),
+('日志查询', 'organize:log:list',        2, 0, 0)
+ON CONFLICT DO NOTHING;
 
 -- 菜单
 INSERT INTO sys_menu (name, path, component, icon, create_by, update_by) VALUES
 ('系统管理', '/system',     'Layout',          'system',  0, 0),
 ('用户管理', '/system/user','system/user/index','user',   0, 0),
-('角色管理', '/system/role','system/role/index','role',   0, 0);
+('角色管理', '/system/role','system/role/index','role',   0, 0)
+ON CONFLICT DO NOTHING;
 
 -- admin 用户拥有 ROLE_ADMIN 角色
-INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1);
+INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1)
+ON CONFLICT DO NOTHING;
 
 -- ROLE_ADMIN 拥有所有权限
 INSERT INTO sys_role_permission (role_id, permission_id)
-SELECT 1, id FROM sys_permission;
+SELECT 1, id FROM sys_permission
+ON CONFLICT DO NOTHING;
 
 -- ROLE_ADMIN 拥有所有菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3);
+(1, 1), (1, 2), (1, 3)
+ON CONFLICT DO NOTHING;

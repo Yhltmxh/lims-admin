@@ -1,6 +1,5 @@
 package com.shou.lims.security.service.impl;
 
-import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.shou.lims.common.enums.StatusEnum;
 import com.shou.lims.common.exception.UnauthorizedException;
 import com.shou.lims.organize.permission.entity.Permission;
@@ -12,8 +11,8 @@ import com.shou.lims.organize.user.entity.User;
 import com.shou.lims.organize.user.mapper.UserMapper;
 import com.shou.lims.security.jwt.JwtTokenService;
 import com.shou.lims.security.jwt.RefreshTokenService;
+import com.shou.lims.security.jwt.AccessTokenBlacklistService;
 import com.shou.lims.security.service.AuthService;
-import com.shou.lims.security.service.RsaKeyService;
 import com.shou.lims.security.service.SecurityUserDetails;
 import com.shou.lims.security.vo.LoginVO;
 import com.shou.lims.security.vo.UserInfoVO;
@@ -33,7 +32,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenService jwtTokenService;
     private final RefreshTokenService refreshTokenService;
-    private final RsaKeyService rsaKeyService;
+    private final AccessTokenBlacklistService accessTokenBlacklistService;
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
@@ -58,27 +57,18 @@ public class AuthServiceImpl implements AuthService {
 
         refreshTokenService.store(userDetails.getUserId(), refreshToken);
 
-        return new LoginVO(accessToken, refreshToken, 900L);
+        return new LoginVO(accessToken, refreshToken, jwtTokenService.getAccessTokenExpirationSeconds());
     }
 
     @Override
     public LoginVO refresh(String accessToken, String refreshToken) {
-        // Decode userId from the (possibly expired) access token without verification
-        Long userId;
-        try {
-            userId = jwtTokenService.extractUserId(accessToken);
-        } catch (JWTDecodeException | NumberFormatException e) {
-            throw new UnauthorizedException();
-        }
-
-        if (!refreshTokenService.validate(userId, refreshToken)) {
-            throw new UnauthorizedException();
-        }
-
-        // Revoke old refresh token (rotation)
-        refreshTokenService.revoke(userId);
+        Long userId = jwtTokenService.extractVerifiedUserIdForRefresh(accessToken);
 
         User user = userMapper.selectById(userId);
+        if (user == null || !StatusEnum.ENABLED.getValue().equals(user.getStatus())) {
+            refreshTokenService.revoke(userId);
+            throw new UnauthorizedException();
+        }
         List<Permission> permissions = permissionMapper.selectByUserId(userId);
         List<String> permissionCodes = permissions.stream()
                 .filter(p -> StatusEnum.ENABLED.getValue().equals(p.getStatus()))
@@ -89,9 +79,11 @@ public class AuthServiceImpl implements AuthService {
                 userId, user.getUsername(), permissionCodes);
         String newRefreshToken = jwtTokenService.generateRefreshToken();
 
-        refreshTokenService.store(userId, newRefreshToken);
+        if (!refreshTokenService.rotate(userId, refreshToken, newRefreshToken)) {
+            throw new UnauthorizedException();
+        }
 
-        return new LoginVO(newAccessToken, newRefreshToken, 900L);
+        return new LoginVO(newAccessToken, newRefreshToken, jwtTokenService.getAccessTokenExpirationSeconds());
     }
 
     @Override
@@ -101,15 +93,14 @@ public class AuthServiceImpl implements AuthService {
             return; // anonymous, nothing to revoke
         }
         refreshTokenService.revoke(userId);
-
-        // TODO: Blacklist access token via CacheService — will be fully implemented in Phase 5
+        accessTokenBlacklistService.blacklist(accessToken, jwtTokenService.getRemainingSeconds(accessToken));
     }
 
     @Override
     public UserInfoVO getCurrentUserInfo() {
         Long userId = SecurityUtils.getCurrentUserId();
         User user = userMapper.selectById(userId);
-        if (user == null) {
+        if (user == null || !StatusEnum.ENABLED.getValue().equals(user.getStatus())) {
             throw new UnauthorizedException();
         }
 

@@ -18,13 +18,19 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtTokenService {
 
+    private static final String ISSUER = "lims-admin";
+    private static final String AUDIENCE = "lims-web";
+
     private final JwtAccessTokenProperties accessTokenProperties;
+    private final JwtRefreshTokenProperties refreshTokenProperties;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public String generateAccessToken(Long userId, String username, List<String> permissions) {
         Algorithm algorithm = Algorithm.HMAC256(accessTokenProperties.secret());
         Instant now = Instant.now();
         return JWT.create()
+                .withIssuer(ISSUER)
+                .withAudience(AUDIENCE)
                 .withSubject(String.valueOf(userId))
                 .withClaim("username", username)
                 .withClaim("permissions", String.join(",", permissions != null ? permissions : List.of()))
@@ -36,20 +42,39 @@ public class JwtTokenService {
     public DecodedJWT verifyAccessToken(String token) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(accessTokenProperties.secret());
-            return JWT.require(algorithm).build().verify(token);
+            return JWT.require(algorithm)
+                    .withIssuer(ISSUER)
+                    .withAudience(AUDIENCE)
+                    .build()
+                    .verify(token);
         } catch (JWTVerificationException e) {
             throw new UnauthorizedException();
         }
     }
 
-    /**
-     * Decode a (possibly expired) access token without verification,
-     * extracting only the userId subject claim.
-     * Used by refresh endpoint when the access token is expired.
-     */
-    public Long extractUserId(String token) {
-        DecodedJWT jwt = JWT.decode(token);
-        return Long.valueOf(jwt.getSubject());
+    public Long extractVerifiedUserIdForRefresh(String token) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(accessTokenProperties.secret());
+            long refreshWindowSeconds = refreshTokenProperties.expiration() * 24L * 60L * 60L;
+            DecodedJWT jwt = JWT.require(algorithm)
+                    .withIssuer(ISSUER)
+                    .withAudience(AUDIENCE)
+                    .acceptExpiresAt(refreshWindowSeconds)
+                    .build()
+                    .verify(token);
+            return Long.valueOf(jwt.getSubject());
+        } catch (JWTVerificationException | NumberFormatException e) {
+            throw new UnauthorizedException();
+        }
+    }
+
+    public long getRemainingSeconds(String token) {
+        DecodedJWT jwt = verifyAccessToken(token);
+        return Math.max(0L, jwt.getExpiresAtAsInstant().getEpochSecond() - Instant.now().getEpochSecond());
+    }
+
+    public long getAccessTokenExpirationSeconds() {
+        return accessTokenProperties.expiration() * 60L;
     }
 
     public String generateRefreshToken() {

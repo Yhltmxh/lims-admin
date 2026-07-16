@@ -12,7 +12,10 @@ public class RoleVO {
     private String label;
     private String description;
     private Integer status;
+    private Integer version;
     private LocalDateTime createTime;
+    private List<Long> permissionIds;
+    private List<Long> menuIds;
     private List<String> permissions;
     private List<String> menus;
 }

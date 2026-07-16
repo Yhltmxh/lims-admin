@@ -16,6 +16,7 @@ public class MenuVO {
     private Integer sortOrder;
     private Integer hidden;
     private Integer status;
+    private Integer version;
     private List<MenuVO> children;
     private LocalDateTime createTime;
 }

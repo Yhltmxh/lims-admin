@@ -8,21 +8,17 @@ spring:
       host: 127.0.0.1
       port: 6380
       password: 123456
-  devtools:
-    restart:
-      enabled: true
+      database: 15
 
 jwt:
   access-token:
-    secret: dev-only-jwt-secret-change-before-production-1234567890
+    secret: test-only-jwt-secret-not-for-production-1234567890
 
 app:
   cors:
-    allowed-origins:
-      - http://localhost:3000
-      - http://localhost:5173
+    allowed-origins: []
 
 logging:
   level:
-    com.shou.lims: debug
-    org.springframework.security: debug
+    com.shou.lims: warn
+    org.springframework.security: warn

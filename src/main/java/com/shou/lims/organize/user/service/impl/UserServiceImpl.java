@@ -13,22 +13,41 @@ import com.shou.lims.organize.user.dto.UserQueryDTO;
 import com.shou.lims.organize.user.dto.UserUpdateDTO;
 import com.shou.lims.organize.user.entity.User;
 import com.shou.lims.organize.user.mapper.UserMapper;
+import com.shou.lims.organize.user.mapper.UserRoleMapper;
+import com.shou.lims.organize.user.mapper.UserRoleRow;
 import com.shou.lims.organize.user.service.UserService;
 import com.shou.lims.organize.user.vo.UserVO;
+import com.shou.lims.organize.dept.entity.Dept;
+import com.shou.lims.organize.dept.mapper.DeptMapper;
+import com.shou.lims.organize.role.entity.Role;
+import com.shou.lims.organize.role.mapper.RoleMapper;
+import com.shou.lims.security.jwt.RefreshTokenService;
+import com.shou.lims.common.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+    private final UserRoleMapper userRoleMapper;
+    private final RoleMapper roleMapper;
+    private final DeptMapper deptMapper;
     private final UserConverter userConverter;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     @Override
     public PageVO<UserVO> page(UserQueryDTO query) {
@@ -41,22 +60,30 @@ public class UserServiceImpl implements UserService {
                 .orderByDesc(User::getCreateTime);
         List<User> list = userMapper.selectList(wrapper);
         PageInfo<User> pageInfo = new PageInfo<>(list);
-        return PageVO.of(pageInfo.convert(userConverter::toVO));
+        List<UserVO> records = userConverter.toVOList(list);
+        enrichUsers(list, records);
+        PageVO<UserVO> result = PageVO.of(pageInfo.convert(userConverter::toVO));
+        result.setRecords(records);
+        return result;
     }
 
     @Override
     public UserVO getById(Long id) {
         User user = userMapper.selectById(id);
-        if (user == null || StatusEnum.DISABLED.getValue().equals(user.getStatus())) {
+        if (user == null) {
             throw new NotFoundException("用户不存在");
         }
-        return userConverter.toVO(user);
+        UserVO vo = userConverter.toVO(user);
+        enrichUsers(List.of(user), List.of(vo));
+        return vo;
     }
 
     @Override
     @Transactional
     public Long create(UserCreateDTO dto) {
-        // Check username uniqueness
+        validateDepartment(dto.getDeptId());
+        List<Long> roleIds = validateRoles(dto.getRoleIds(), true);
+
         User existing = userMapper.selectOne(new LambdaQueryWrapper<User>()
                 .eq(User::getUsername, dto.getUsername())
                 .eq(User::getIsDelete, 0));
@@ -68,10 +95,7 @@ public class UserServiceImpl implements UserService {
         user.setStatus(StatusEnum.ENABLED.getValue());
         userMapper.insert(user);
 
-        // Assign roles
-        if (dto.getRoleIds() != null && !dto.getRoleIds().isEmpty()) {
-            assignRoles(user.getId(), dto.getRoleIds());
-        }
+        assignRoles(user.getId(), roleIds);
         return user.getId();
     }
 
@@ -81,6 +105,17 @@ public class UserServiceImpl implements UserService {
         User user = userMapper.selectById(id);
         if (user == null) {
             throw new NotFoundException("用户不存在");
+        }
+        if (dto.getVersion() != null && !dto.getVersion().equals(user.getVersion())) {
+            throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
+        }
+        if (dto.getDeptId() != null) {
+            validateDepartment(dto.getDeptId());
+        }
+        List<Long> roleIds = dto.getRoleIds() == null ? null : validateRoles(dto.getRoleIds(), true);
+        if (id.equals(SecurityUtils.getCurrentUserId())
+                && StatusEnum.DISABLED.getValue().equals(dto.getStatus())) {
+            throw new BusinessException(400, "不能禁用当前登录用户");
         }
         if (StringUtils.isNotBlank(dto.getRealName())) user.setRealName(dto.getRealName());
         if (dto.getPhone() != null) user.setPhone(dto.getPhone());
@@ -92,24 +127,83 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
         }
 
-        if (dto.getRoleIds() != null) {
-            // Reassign roles: delete old, insert new
-            assignRoles(id, dto.getRoleIds());
+        if (roleIds != null) {
+            assignRoles(id, roleIds);
+        }
+        if (StatusEnum.DISABLED.getValue().equals(dto.getStatus())) {
+            refreshTokenService.revoke(id);
         }
     }
 
     @Override
     @Transactional
     public void delete(List<Long> ids) {
-        userMapper.deleteBatchIds(ids); // MyBatis-Plus logic delete via @TableLogic
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        if (ids.contains(SecurityUtils.getCurrentUserId())) {
+            throw new BusinessException(400, "不能删除当前登录用户");
+        }
+        userRoleMapper.deleteByUserIds(ids);
+        userMapper.deleteBatchIds(ids);
+        ids.forEach(refreshTokenService::revoke);
     }
 
-    /**
-     * Assign roles to a user.
-     * TODO: This is a placeholder — needs a RoleAssignmentMapper or raw SQL for sys_user_role table.
-     */
     private void assignRoles(Long userId, List<Long> roleIds) {
-        // TODO: Replace with RoleAssignmentMapper or raw SQL for sys_user_role table
-        // WARNING: Do NOT use userMapper.delete() here — that would logic-delete the user, not role assignments.
+        userRoleMapper.deleteByUserId(userId);
+        roleIds.forEach(roleId -> userRoleMapper.insert(userId, roleId));
+    }
+
+    private List<Long> validateRoles(Collection<Long> roleIds, boolean required) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            if (required) {
+                throw new BusinessException(400, "用户至少需要分配一个角色");
+            }
+            return List.of();
+        }
+        List<Long> distinctIds = new ArrayList<>(new LinkedHashSet<>(roleIds));
+        List<Role> roles = roleMapper.selectBatchIds(distinctIds);
+        Set<Long> enabledRoleIds = roles.stream()
+                .filter(role -> StatusEnum.ENABLED.getValue().equals(role.getStatus()))
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+        if (enabledRoleIds.size() != distinctIds.size() || !enabledRoleIds.containsAll(distinctIds)) {
+            throw new BusinessException(400, "角色不存在或已禁用");
+        }
+        return distinctIds;
+    }
+
+    private void validateDepartment(Long deptId) {
+        if (deptId == null) {
+            return;
+        }
+        Dept dept = deptMapper.selectById(deptId);
+        if (dept == null || !StatusEnum.ENABLED.getValue().equals(dept.getStatus())) {
+            throw new BusinessException(400, "部门不存在或已禁用");
+        }
+    }
+
+    private void enrichUsers(List<User> users, List<UserVO> records) {
+        if (users.isEmpty()) {
+            return;
+        }
+        Set<Long> deptIds = users.stream().map(User::getDeptId)
+                .filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Dept> deptMap = deptIds.isEmpty() ? Map.of() : deptMapper.selectBatchIds(deptIds).stream()
+                .collect(Collectors.toMap(Dept::getId, Function.identity()));
+
+        List<Long> userIds = users.stream().map(User::getId).toList();
+        Map<Long, List<UserRoleRow>> roleRows = userRoleMapper.selectRoleRowsByUserIds(userIds).stream()
+                .collect(Collectors.groupingBy(UserRoleRow::getUserId));
+
+        Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, Function.identity()));
+        for (UserVO vo : records) {
+            User user = userMap.get(vo.getId());
+            Dept dept = user != null ? deptMap.get(user.getDeptId()) : null;
+            vo.setDeptName(dept != null ? dept.getName() : null);
+            List<UserRoleRow> rows = roleRows.getOrDefault(vo.getId(), List.of());
+            vo.setRoleIds(rows.stream().map(UserRoleRow::getRoleId).toList());
+            vo.setRoleNames(rows.stream().map(UserRoleRow::getRoleName).toList());
+        }
     }
 }

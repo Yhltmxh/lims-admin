@@ -22,7 +22,7 @@ public class LogController {
 
     @GetMapping
     @Operation(summary = "分页查询日志")
-    @PreAuthorize("hasAuthority('organize:user')")
+    @PreAuthorize("hasAuthority('organize:log:list')")
     public Result<CursorPageVO<LogVO>> list(@Valid LogQueryDTO query) {
         return Result.success(logService.page(query));
     }

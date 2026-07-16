@@ -29,9 +29,9 @@ class PermissionServiceImplTest extends BaseSpringBootTest {
         PermissionQueryDTO query = new PermissionQueryDTO();
         query.setPageNum(1);
         query.setPageSize(10);
-        query.setCode("organize:user");
+        query.setCode("organize:user:list");
         PageVO<PermissionVO> result = permissionService.page(query);
         assertThat(result.getTotal()).isEqualTo(1);
-        assertThat(result.getRecords().get(0).getCode()).isEqualTo("organize:user");
+        assertThat(result.getRecords().get(0).getCode()).isEqualTo("organize:user:list");
     }
 }

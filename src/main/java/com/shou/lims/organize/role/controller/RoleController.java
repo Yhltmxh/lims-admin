@@ -7,10 +7,13 @@ import com.shou.lims.organize.role.dto.RoleQueryDTO;
 import com.shou.lims.organize.role.dto.RoleUpdateDTO;
 import com.shou.lims.organize.role.service.RoleService;
 import com.shou.lims.organize.role.vo.RoleVO;
+import com.shou.lims.organize.log.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,21 +29,22 @@ public class RoleController {
 
     @GetMapping
     @Operation(summary = "分页查询角色")
-    @PreAuthorize("hasAuthority('organize:role')")
+    @PreAuthorize("hasAuthority('organize:role:list')")
     public Result<PageVO<RoleVO>> list(@Valid RoleQueryDTO query) {
         return Result.success(roleService.page(query));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取角色详情")
-    @PreAuthorize("hasAuthority('organize:role')")
-    public Result<RoleVO> getById(@PathVariable Long id) {
+    @PreAuthorize("hasAuthority('organize:role:list')")
+    public Result<RoleVO> getById(@PathVariable @Positive Long id) {
         return Result.success(roleService.getById(id));
     }
 
     @PostMapping
     @Operation(summary = "新增角色")
     @PreAuthorize("hasAuthority('organize:role:add')")
+    @Log(module = "角色管理", action = "新增角色")
     public Result<Long> create(@Valid @RequestBody RoleCreateDTO dto) {
         return Result.success(roleService.create(dto));
     }
@@ -48,7 +52,8 @@ public class RoleController {
     @PutMapping("/{id}")
     @Operation(summary = "编辑角色")
     @PreAuthorize("hasAuthority('organize:role:edit')")
-    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody RoleUpdateDTO dto) {
+    @Log(module = "角色管理", action = "编辑角色")
+    public Result<Void> update(@PathVariable @Positive Long id, @Valid @RequestBody RoleUpdateDTO dto) {
         roleService.update(id, dto);
         return Result.success();
     }
@@ -56,23 +61,31 @@ public class RoleController {
     @DeleteMapping
     @Operation(summary = "批量删除角色")
     @PreAuthorize("hasAuthority('organize:role:del')")
-    public Result<Void> delete(@RequestBody @NotEmpty List<Long> ids) {
+    @Log(module = "角色管理", action = "删除角色")
+    public Result<Void> delete(@Valid @RequestBody @NotEmpty @Size(max = 500)
+                               List<@Positive Long> ids) {
         roleService.delete(ids);
         return Result.success();
     }
 
     @PostMapping("/{id}/permissions")
     @Operation(summary = "分配权限")
-    @PreAuthorize("hasAuthority('organize:role')")
-    public Result<Void> assignPermissions(@PathVariable Long id, @RequestBody @NotEmpty List<Long> permissionIds) {
+    @PreAuthorize("hasAuthority('organize:role:edit')")
+    @Log(module = "角色管理", action = "分配权限")
+    public Result<Void> assignPermissions(@PathVariable @Positive Long id,
+                                          @Valid @RequestBody @Size(max = 500)
+                                          List<@Positive Long> permissionIds) {
         roleService.assignPermissions(id, permissionIds);
         return Result.success();
     }
 
     @PostMapping("/{id}/menus")
     @Operation(summary = "分配菜单")
-    @PreAuthorize("hasAuthority('organize:role')")
-    public Result<Void> assignMenus(@PathVariable Long id, @RequestBody @NotEmpty List<Long> menuIds) {
+    @PreAuthorize("hasAuthority('organize:role:edit')")
+    @Log(module = "角色管理", action = "分配菜单")
+    public Result<Void> assignMenus(@PathVariable @Positive Long id,
+                                    @Valid @RequestBody @Size(max = 500)
+                                    List<@Positive Long> menuIds) {
         roleService.assignMenus(id, menuIds);
         return Result.success();
     }

@@ -63,8 +63,11 @@ class DeptServiceImplTest extends BaseSpringBootTest {
 
     @Test
     void shouldDeleteDept() {
-        deptService.delete(List.of(3L));
-        assertThatThrownBy(() -> deptService.getById(3L))
+        DeptCreateDTO dto = new DeptCreateDTO();
+        dto.setName("待删除部门");
+        Long id = deptService.create(dto);
+        deptService.delete(List.of(id));
+        assertThatThrownBy(() -> deptService.getById(id))
                 .isInstanceOf(NotFoundException.class);
     }
 }

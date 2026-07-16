@@ -47,7 +47,7 @@ class AuthControllerTest extends BaseSpringBootTest {
                 Map.of("username", "admin", "cipherPwd", "wrong"));
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isOk())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(401));
     }
 
@@ -56,7 +56,7 @@ class AuthControllerTest extends BaseSpringBootTest {
         String body = objectMapper.writeValueAsString(Map.of("username", "admin"));
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
     }
 

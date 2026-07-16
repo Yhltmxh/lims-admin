@@ -32,9 +32,7 @@
         <java-jwt.version>4.5.0</java-jwt.version>
         <springdoc.version>2.8.0</springdoc.version>
         <mapstruct.version>1.6.3</mapstruct.version>
-        <guava.version>33.4.8-jre</guava.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
-        <commons-collections4.version>4.5.0</commons-collections4.version>
         <pagehelper.version>2.1.0</pagehelper.version>
     </properties>
     <dependencies>
@@ -109,19 +107,9 @@
 
         <!-- Utilities -->
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>${commons-lang3.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-collections4</artifactId>
-            <version>${commons-collections4.version}</version>
         </dependency>
 
         <!-- DevTools -->

@@ -34,7 +34,7 @@ class UserControllerTest extends BaseAuthenticatedTest {
         mockMvc.perform(get("/system/users/9999")
                         .header("Authorization", "Bearer " + adminToken)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404));
     }
 
@@ -55,7 +55,7 @@ class UserControllerTest extends BaseAuthenticatedTest {
         mockMvc.perform(post("/system/users")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON).content(json))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
     }
 
@@ -65,7 +65,7 @@ class UserControllerTest extends BaseAuthenticatedTest {
         mockMvc.perform(post("/system/users")
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON).content(json))
-                .andExpect(status().isOk())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value(409));
     }
 

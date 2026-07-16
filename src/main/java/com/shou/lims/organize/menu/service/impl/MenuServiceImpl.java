@@ -15,13 +15,17 @@ import com.shou.lims.organize.menu.entity.Menu;
 import com.shou.lims.organize.menu.mapper.MenuMapper;
 import com.shou.lims.organize.menu.service.MenuService;
 import com.shou.lims.organize.menu.vo.MenuVO;
+import com.shou.lims.organize.role.mapper.RoleMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +34,7 @@ public class MenuServiceImpl implements MenuService {
 
     private final MenuMapper menuMapper;
     private final MenuConverter menuConverter;
+    private final RoleMapper roleMapper;
 
     @Override
     public PageVO<MenuVO> page(MenuQueryDTO query) {
@@ -46,7 +51,7 @@ public class MenuServiceImpl implements MenuService {
     @Override
     public MenuVO getById(Long id) {
         Menu menu = menuMapper.selectById(id);
-        if (menu == null || StatusEnum.DISABLED.getValue().equals(menu.getStatus())) {
+        if (menu == null) {
             throw new NotFoundException("菜单不存在");
         }
         return menuConverter.toVO(menu);
@@ -55,6 +60,7 @@ public class MenuServiceImpl implements MenuService {
     @Override
     @Transactional
     public Long create(MenuCreateDTO dto) {
+        validateParent(null, dto.getParentId());
         Menu existing = menuMapper.selectOne(new LambdaQueryWrapper<Menu>()
                 .eq(Menu::getName, dto.getName()));
         if (existing != null) {
@@ -73,6 +79,25 @@ public class MenuServiceImpl implements MenuService {
         if (menu == null) {
             throw new NotFoundException("菜单不存在");
         }
+        if (dto.getVersion() != null && !dto.getVersion().equals(menu.getVersion())) {
+            throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
+        }
+        if (dto.getParentId() != null) {
+            validateParent(id, dto.getParentId());
+        }
+        if (StringUtils.isNotBlank(dto.getName())) {
+            Menu duplicate = menuMapper.selectOne(new LambdaQueryWrapper<Menu>()
+                    .eq(Menu::getName, dto.getName()).ne(Menu::getId, id));
+            if (duplicate != null) {
+                throw new BusinessException(409, "菜单名称已存在");
+            }
+        }
+        if (StatusEnum.DISABLED.getValue().equals(dto.getStatus())
+                && menuMapper.selectCount(new LambdaQueryWrapper<Menu>()
+                .eq(Menu::getParentId, id)
+                .eq(Menu::getStatus, StatusEnum.ENABLED.getValue())) > 0) {
+            throw new BusinessException(400, "请先禁用子菜单");
+        }
         if (dto.getParentId() != null) menu.setParentId(dto.getParentId());
         if (StringUtils.isNotBlank(dto.getName())) menu.setName(dto.getName());
         if (dto.getPath() != null) menu.setPath(dto.getPath());
@@ -89,7 +114,18 @@ public class MenuServiceImpl implements MenuService {
     @Override
     @Transactional
     public void delete(List<Long> ids) {
-        menuMapper.deleteBatchIds(ids);
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        List<Long> distinctIds = new ArrayList<>(new LinkedHashSet<>(ids));
+        long childCount = menuMapper.selectCount(new LambdaQueryWrapper<Menu>()
+                .in(Menu::getParentId, distinctIds)
+                .notIn(Menu::getId, distinctIds));
+        if (childCount > 0) {
+            throw new BusinessException(400, "存在未同时删除的子菜单");
+        }
+        roleMapper.deleteRoleMenusByMenuIds(distinctIds);
+        menuMapper.deleteBatchIds(distinctIds);
     }
 
     @Override
@@ -110,5 +146,29 @@ public class MenuServiceImpl implements MenuService {
             vo.setChildren(parentMap.getOrDefault(vo.getId(), new ArrayList<>()));
         }
         return roots;
+    }
+
+    private void validateParent(Long currentId, Long parentId) {
+        if (parentId == null || parentId == 0L) {
+            return;
+        }
+        if (parentId.equals(currentId)) {
+            throw new BusinessException(400, "上级菜单不能是自身");
+        }
+        Set<Long> visited = new HashSet<>();
+        Long cursor = parentId;
+        while (cursor != null && cursor != 0L) {
+            if (!visited.add(cursor) || cursor.equals(currentId)) {
+                throw new BusinessException(400, "菜单层级不能形成循环");
+            }
+            Menu parent = menuMapper.selectById(cursor);
+            if (parent == null) {
+                throw new BusinessException(400, "上级菜单不存在");
+            }
+            if (!StatusEnum.ENABLED.getValue().equals(parent.getStatus())) {
+                throw new BusinessException(400, "上级菜单已禁用");
+            }
+            cursor = parent.getParentId();
+        }
     }
 }

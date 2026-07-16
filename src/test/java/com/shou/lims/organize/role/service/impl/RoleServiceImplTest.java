@@ -37,6 +37,8 @@ class RoleServiceImplTest extends BaseSpringBootTest {
     void shouldGetById() {
         RoleVO role = roleService.getById(1L);
         assertThat(role.getName()).isEqualTo("ROLE_ADMIN");
+        assertThat(role.getPermissionIds()).isNotEmpty();
+        assertThat(role.getMenuIds()).isNotEmpty();
     }
 
     @Test

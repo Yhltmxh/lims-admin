@@ -14,6 +14,7 @@ public class DeptVO {
     private String leader;
     private String phone;
     private Integer status;
+    private Integer version;
     private List<DeptVO> children;
     private LocalDateTime createTime;
 }

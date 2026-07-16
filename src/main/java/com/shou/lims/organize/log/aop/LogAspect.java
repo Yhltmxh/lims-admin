@@ -1,6 +1,9 @@
 package com.shou.lims.organize.log.aop;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shou.lims.common.util.SecurityUtils;
 import com.shou.lims.organize.log.annotation.Log;
 import com.shou.lims.organize.log.service.LogSaveService;
@@ -13,10 +16,17 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
 @Aspect
 @Component
 @RequiredArgsConstructor
 public class LogAspect {
+
+    private static final Set<String> SENSITIVE_FIELDS = Set.of(
+            "password", "cipherpwd", "refreshtoken", "accesstoken", "token", "secret");
 
     private final LogSaveService logSaveService;
     private final ObjectMapper objectMapper;
@@ -31,7 +41,9 @@ public class LogAspect {
         logEntity.setUserId(SecurityUtils.getCurrentUserId());
 
         try {
-            logEntity.setParams(objectMapper.writeValueAsString(joinPoint.getArgs()));
+            JsonNode args = objectMapper.valueToTree(joinPoint.getArgs());
+            redact(args);
+            logEntity.setParams(objectMapper.writeValueAsString(args));
         } catch (Exception e) {
             logEntity.setParams("[serialization failed: " + e.getMessage() + "]");
         }
@@ -56,6 +68,22 @@ public class LogAspect {
             throw t;
         } finally {
             logSaveService.saveLog(logEntity);
+        }
+    }
+
+    private void redact(JsonNode node) {
+        if (node instanceof ObjectNode objectNode) {
+            Iterator<Map.Entry<String, JsonNode>> fields = objectNode.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                if (SENSITIVE_FIELDS.contains(field.getKey().toLowerCase())) {
+                    objectNode.put(field.getKey(), "***");
+                } else {
+                    redact(field.getValue());
+                }
+            }
+        } else if (node instanceof ArrayNode arrayNode) {
+            arrayNode.forEach(this::redact);
         }
     }
 }

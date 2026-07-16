@@ -13,5 +13,6 @@ public class PermissionVO {
     private Long parentId;
     private Integer sortOrder;
     private Integer status;
+    private Integer version;
     private LocalDateTime createTime;
 }

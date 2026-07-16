@@ -1,14 +1,11 @@
 spring:
   application:
     name: lims-admin
-  profiles:
-    active: dev
-
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://127.0.0.1:5432/lims?currentSchema=public
-    username: ivorysql
-    password: 123456
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     hikari:
       minimum-idle: 5
       maximum-pool-size: 20
@@ -17,9 +14,9 @@ spring:
 
   data:
     redis:
-      host: 127.0.0.1
-      port: 6380
-      password: 123456
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
       lettuce:
         pool:
           max-active: 8
@@ -48,7 +45,7 @@ mybatis-plus:
 
 jwt:
   access-token:
-    secret: changeme-this-must-be-a-256-bit-base64-encoded-secret-key-at-least-32-chars
+    secret: ${JWT_ACCESS_SECRET}
     expiration: 15
   refresh-token:
     expiration: 7
@@ -59,7 +56,11 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+app:
+  cors:
+    allowed-origins: []
+
 logging:
   level:
-    com.shou.lims: debug
-    org.springframework.security: debug
+    com.shou.lims: info
+    org.springframework.security: info

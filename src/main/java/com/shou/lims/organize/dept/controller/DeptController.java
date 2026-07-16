@@ -7,10 +7,13 @@ import com.shou.lims.organize.dept.dto.DeptQueryDTO;
 import com.shou.lims.organize.dept.dto.DeptUpdateDTO;
 import com.shou.lims.organize.dept.service.DeptService;
 import com.shou.lims.organize.dept.vo.DeptVO;
+import com.shou.lims.organize.log.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,28 +29,29 @@ public class DeptController {
 
     @GetMapping
     @Operation(summary = "分页查询部门")
-    @PreAuthorize("hasAuthority('organize:dept')")
+    @PreAuthorize("hasAuthority('organize:dept:list')")
     public Result<PageVO<DeptVO>> list(@Valid DeptQueryDTO query) {
         return Result.success(deptService.page(query));
     }
 
     @GetMapping("/tree")
     @Operation(summary = "获取部门树")
-    @PreAuthorize("hasAuthority('organize:dept')")
+    @PreAuthorize("hasAuthority('organize:dept:list')")
     public Result<List<DeptVO>> tree() {
         return Result.success(deptService.getTree());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取部门详情")
-    @PreAuthorize("hasAuthority('organize:dept')")
-    public Result<DeptVO> getById(@PathVariable Long id) {
+    @PreAuthorize("hasAuthority('organize:dept:list')")
+    public Result<DeptVO> getById(@PathVariable @Positive Long id) {
         return Result.success(deptService.getById(id));
     }
 
     @PostMapping
     @Operation(summary = "新增部门")
     @PreAuthorize("hasAuthority('organize:dept:add')")
+    @Log(module = "部门管理", action = "新增部门")
     public Result<Long> create(@Valid @RequestBody DeptCreateDTO dto) {
         return Result.success(deptService.create(dto));
     }
@@ -55,7 +59,8 @@ public class DeptController {
     @PutMapping("/{id}")
     @Operation(summary = "编辑部门")
     @PreAuthorize("hasAuthority('organize:dept:edit')")
-    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody DeptUpdateDTO dto) {
+    @Log(module = "部门管理", action = "编辑部门")
+    public Result<Void> update(@PathVariable @Positive Long id, @Valid @RequestBody DeptUpdateDTO dto) {
         deptService.update(id, dto);
         return Result.success();
     }
@@ -63,7 +68,9 @@ public class DeptController {
     @DeleteMapping
     @Operation(summary = "批量删除部门")
     @PreAuthorize("hasAuthority('organize:dept:del')")
-    public Result<Void> delete(@RequestBody @NotEmpty List<Long> ids) {
+    @Log(module = "部门管理", action = "删除部门")
+    public Result<Void> delete(@Valid @RequestBody @NotEmpty @Size(max = 500)
+                               List<@Positive Long> ids) {
         deptService.delete(ids);
         return Result.success();
     }

@@ -26,7 +26,7 @@ class GlobalExceptionHandlerTest {
     void shouldReturn404ForNotFoundException() throws Exception {
         mockMvc.perform(get("/test/not-found")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404))
                 .andExpect(jsonPath("$.message").value("资源不存在"));
     }
@@ -35,7 +35,7 @@ class GlobalExceptionHandlerTest {
     void shouldReturn500ForUnknownException() throws Exception {
         mockMvc.perform(get("/test/unknown-error")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
                 .andExpect(jsonPath("$.message").value("系统内部错误"));
     }
@@ -43,7 +43,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldReturn409ForBusinessException() throws Exception {
         mockMvc.perform(get("/test/business-409").accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value(409))
                 .andExpect(jsonPath("$.message").value("数据冲突"));
     }
@@ -51,14 +51,14 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldReturn401ForUnauthorizedException() throws Exception {
         mockMvc.perform(get("/test/unauthorized").accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(401));
     }
 
     @Test
     void shouldReturn403ForForbiddenException() throws Exception {
         mockMvc.perform(get("/test/forbidden").accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403));
     }
 }

@@ -16,6 +16,7 @@ public class UserCreateDTO {
     private String password;
 
     @NotBlank(message = "真实姓名不能为空")
+    @Size(max = 32, message = "真实姓名不能超过32位")
     private String realName;
 
     @Phone
@@ -24,9 +25,14 @@ public class UserCreateDTO {
     @Email(message = "邮箱格式不正确")
     private String email;
 
+    @Min(value = 0, message = "性别值不正确")
+    @Max(value = 2, message = "性别值不正确")
     private Integer gender;
+
+    @Positive(message = "部门ID必须为正数")
     private Long deptId;
 
     @NotEmpty(message = "角色不能为空")
-    private List<Long> roleIds;
+    @Size(max = 100, message = "一次最多分配100个角色")
+    private List<@Positive(message = "角色ID必须为正数") Long> roleIds;
 }

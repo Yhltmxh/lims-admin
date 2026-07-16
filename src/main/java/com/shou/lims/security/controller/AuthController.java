@@ -1,6 +1,8 @@
 package com.shou.lims.security.controller;
 
 import com.shou.lims.common.response.Result;
+import com.shou.lims.common.exception.UnauthorizedException;
+import com.shou.lims.common.exception.BusinessException;
 import com.shou.lims.security.dto.LoginRequest;
 import com.shou.lims.security.dto.RefreshRequest;
 import com.shou.lims.security.service.AuthService;
@@ -14,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -39,11 +42,11 @@ public class AuthController {
         String rawPassword;
         if (StringUtils.isBlank(request.getKeyId())) {
             // dev环境允许明文密码，方便Swagger调试
-            if (environment.matchesProfiles("dev")) {
+            if (environment.matchesProfiles("dev", "test")) {
                 log.debug("dev环境明文密码登录: {}", request.getUsername());
                 rawPassword = request.getCipherPwd();
             } else {
-                return Result.fail(400, "密钥ID不能为空");
+                throw new BusinessException(400, "密钥ID不能为空");
             }
         } else {
             rawPassword = rsaKeyService.decrypt(request.getKeyId(), request.getCipherPwd());
@@ -55,21 +58,31 @@ public class AuthController {
     @Operation(summary = "刷新Token")
     public Result<LoginVO> refresh(@RequestHeader("Authorization") String authHeader,
                                    @Valid @RequestBody RefreshRequest request) {
-        String token = authHeader.replace("Bearer ", "");
+        String token = extractBearerToken(authHeader);
         return Result.success(authService.refresh(token, request.getRefreshToken()));
     }
 
     @PostMapping("/logout")
     @Operation(summary = "注销")
+    @PreAuthorize("isAuthenticated()")
     public Result<Void> logout(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
+        String token = extractBearerToken(authHeader);
         authService.logout(token);
         return Result.success();
     }
 
     @GetMapping("/me")
     @Operation(summary = "获取当前用户信息")
+    @PreAuthorize("isAuthenticated()")
     public Result<UserInfoVO> me() {
         return Result.success(authService.getCurrentUserInfo());
+    }
+
+    private String extractBearerToken(String authHeader) {
+        if (StringUtils.isBlank(authHeader) || !authHeader.startsWith("Bearer ")
+                || authHeader.length() == "Bearer ".length()) {
+            throw new UnauthorizedException();
+        }
+        return authHeader.substring("Bearer ".length());
     }
 }

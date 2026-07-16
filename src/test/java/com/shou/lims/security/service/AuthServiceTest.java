@@ -64,7 +64,7 @@ class AuthServiceTest extends BaseSpringBootTest {
     void shouldLogoutAndRevokeRefreshToken() {
         LoginVO loginResult = authService.login("admin", "123456");
         SecurityUserDetails userDetails = new SecurityUserDetails(
-                1L, "admin", "", true, List.of(new SimpleGrantedAuthority("organize:user")));
+                1L, "admin", "", true, List.of(new SimpleGrantedAuthority("organize:user:list")));
         Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(auth);
 

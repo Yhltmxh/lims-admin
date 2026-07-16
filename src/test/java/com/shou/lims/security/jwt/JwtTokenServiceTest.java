@@ -19,12 +19,12 @@ class JwtTokenServiceTest extends BaseSpringBootTest {
     @Test
     void shouldGenerateAndVerifyAccessToken() {
         String token = jwtTokenService.generateAccessToken(1L, "admin",
-                List.of("organize:user", "organize:menu"));
+                List.of("organize:user:list", "organize:menu:list"));
 
         DecodedJWT jwt = JWT.decode(token);
         assertThat(jwt.getSubject()).isEqualTo("1");
         assertThat(jwt.getClaim("username").asString()).isEqualTo("admin");
-        assertThat(jwt.getClaim("permissions").asString()).contains("organize:user");
+        assertThat(jwt.getClaim("permissions").asString()).contains("organize:user:list");
     }
 
     @Test
@@ -56,8 +56,8 @@ class JwtTokenServiceTest extends BaseSpringBootTest {
     }
 
     @Test
-    void shouldExtractUserId() {
+    void shouldExtractVerifiedUserIdForRefresh() {
         String token = jwtTokenService.generateAccessToken(42L, "admin", List.of());
-        assertThat(jwtTokenService.extractUserId(token)).isEqualTo(42L);
+        assertThat(jwtTokenService.extractVerifiedUserIdForRefresh(token)).isEqualTo(42L);
     }
 }

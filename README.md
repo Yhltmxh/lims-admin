@@ -16,7 +16,7 @@
 | API 文档 | SpringDoc 2.8.0 + Swagger UI |
 | 对象映射 | MapStruct 1.6.3 |
 | 分页 | PageHelper 2.1.0 |
-| 工具库 | Guava, Commons Lang3, Commons Collections4 |
+| 工具库 | Commons Lang3 |
 
 ## 快速开始
 
@@ -35,12 +35,18 @@
 psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/init.sql
 ```
 
+如果数据库已经执行过旧版初始化脚本，请额外执行升级补丁：
+
+```bash
+psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-16-security-hardening.sql
+```
+
 模拟数据包含 4 个部门、4 个角色、4 个用户（密码均为 BCrypt 加密的 `123456`）。
 
 ### 启动项目
 
 ```bash
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 ### 访问 API 文档
@@ -48,6 +54,10 @@ psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/init.sql
 启动后访问：`http://localhost:8080/swagger-ui.html`
 
 Swagger UI 提供在线 API 调试界面。调试需鉴权的接口时，先调用 `/auth/login` 获取 Token，然后点击页面右上角 **Authorize** 按钮填入 AccessToken（不含 Bearer 前缀），后续所有请求将自动携带 `Authorization` 请求头。
+
+生产环境必须显式激活 `prod` Profile，并提供 `DB_URL`、`DB_USERNAME`、`DB_PASSWORD`、
+`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`、`JWT_ACCESS_SECRET` 和
+`CORS_ALLOWED_ORIGINS` 环境变量。`CORS_ALLOWED_ORIGINS` 使用逗号分隔多个前端来源。
 
 ---
 

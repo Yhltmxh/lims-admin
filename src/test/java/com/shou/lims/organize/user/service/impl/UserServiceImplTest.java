@@ -68,12 +68,14 @@ class UserServiceImplTest extends BaseSpringBootTest {
         dto.setUsername("testuser");
         dto.setPassword("123456");
         dto.setRealName("测试用户");
+        dto.setRoleIds(List.of(1L));
 
         Long id = userService.create(dto);
 
         assertThat(id).isNotNull();
         UserVO created = userService.getById(id);
         assertThat(created.getUsername()).isEqualTo("testuser");
+        assertThat(created.getRoleIds()).containsExactly(1L);
     }
 
     @Test
@@ -81,6 +83,7 @@ class UserServiceImplTest extends BaseSpringBootTest {
         UserCreateDTO dto = new UserCreateDTO();
         dto.setUsername("admin");
         dto.setPassword("123456");
+        dto.setRoleIds(List.of(1L));
 
         assertThatThrownBy(() -> userService.create(dto))
                 .isInstanceOf(BusinessException.class)
