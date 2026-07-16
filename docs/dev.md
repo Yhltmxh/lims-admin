@@ -1,143 +1,190 @@
 # 开发文档
 
-本项目为一个业务复杂的单体项目，采用前后端分离架构，类型为环境检测的体制项目。现在需要你作为一名专业架构师严格制定计划，完善这个开发文档，补充具体细节，目的是构造一个具备基础功能用于后续其他模块功能开发的基础项目。
+## 开发环境配置
 
-## 一、技术选型
-### 1. jdk17
-### 2. Spring Boot 3.5.16 + mybatis plus
-### 3. 数据库：IvorySQL
-### 4. Redis
-### 5. 安全框架：Spring Security也相应为6.5.11
-### 6. 用户鉴权：JWT：Java JWT
-### 7. 工作流引擎：Dromara Warm-Flow
-### 8. API文档：knife4j
-### 9. 工具库：MapStruct，Guava + Commons Lang3 + Commons Collections4等
+以下配置基于 Windows 11 操作系统，仅供参考，可根据实际情况选择其他配置方式。
 
+### 一、安装 WSL2（Ubuntu-24.04）
 
+在 PowerShell（管理员）中执行：
 
-## 二、任务
-
-以下任务均建立在前后端分离的单体项目架构
-
-### 1. 根据技术选型完成环境配置
-    （1）redis：127.0.0.1:6380 密码：123456
-    （2）IvorySQL：127.0.0.1:5432 用户名：ivorysql 密码：123456
-### 2. 项目结构设计
-
-业务复杂但仍采用单体架构，推荐采用**按业务模块组织代码**，在每个模块内部再进行分层
-
-推荐结构：
-
-```
-src/main/java
-└── com.company.lims
-    ├── common                 // 公共模块
-    │   ├── config
-    │   ├── constant
-    │   ├── enums
-    │   ├── exception
-    │   ├── response
-    │   ├── util
-    │   ├── validation
-    │   └── cache
-    │
-    ├── security               // JWT、Spring Security
-    │   ├── jwt
-    │   ├── filter
-    │   ├── handler
-    │   ├── service
-    │   └── config
-    │
-    ├── system                 // 系统管理
-    │   ├── user
-    │   ├── role
-    │   ├── permission
-    │   ├── dept
-    │   ├── menu
-    │   └── log
-    │
-    ├── sample                 // 样品管理
-    │
-    ├── project                // 项目管理
-    │
-    ├── task                   // 检测任务
-    │
-    ├── instrument             // 仪器设备
-    │
-    ├── report                 // 报告管理
-    │
-    ├── customer               // 客户
-    │
-    ├── contract               // 合同
-    │
-    ├── workflow               // 审批流程
-    │
-    ├── notification           // 消息通知
-    │
-    ├── file                   // 文件上传
-    │
-    └── LimsApplication.java
+```powershell
+wsl --install -d Ubuntu-24.04
 ```
 
-每个业务模块内部：
+安装完成后重启电脑，首次进入 Ubuntu 会提示创建 Linux 用户名和密码。后续可通过 Windows Terminal 或 `wsl` 命令进入。
 
-例如 Sample：
+> **为什么需要 WSL2？** Docker Desktop 在 Windows 上依赖 WSL2 作为后端运行 Linux 容器，性能远优于传统的 Hyper-V 后端。
 
+### 二、安装 Docker Desktop
+
+从 [docker.com](https://www.docker.com/products/docker-desktop/) 下载并安装 Docker Desktop for Windows。安装时确保勾选 "Use WSL 2 instead of Hyper-V"。
+
+1. 配置镜像源 registry-mirrors（Docker Desktop → Settings → Docker Engine）：
+    ```json
+    {
+      "builder": {
+        "gc": {
+          "defaultKeepStorage": "20GB",
+          "enabled": true
+        }
+      },
+      "experimental": false,
+      "registry-mirrors": [
+        "https://docker.1ms.run"
+      ]
+    }
+    ```
+    配置完成后点击 "Apply & Restart" 重启 Docker 引擎。
+
+2. 开启 WSL Integration（Docker Desktop → Settings → Resources → WSL Integration）：
+   - 勾选 "Enable integration with my default WSL distro"
+   - 确保 `Ubuntu-24.04` 处于开启状态
+
+3. 在 Ubuntu 中验证 Docker 是否正常：
+    ```shell
+    docker version
+    docker compose version
+    ```
+    两条命令都应正常输出版本信息，无报错。
+
+### 三、创建 docker-compose.yml 文件
+
+找一个固定目录（建议 `~/docker/lims/`），创建 `docker-compose.yml`：
+
+```yaml
+services:
+  ivorysql:
+    image: ivorysql/ivorysql:5.4-bookworm
+    container_name: ivorysql
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      IVORYSQL_PASSWORD: 123456
+    volumes:
+      - ivorysql_data:/var/local/ivorysql/ivorysql-5/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ivorysql -d ivorysql"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - "123456"
+    ports:
+      - "6380:6379" # 若本机没有安装 redis 可直接写为 6379:6379，修改 6380 是为了避免端口冲突
+    volumes:
+      - redis_data:/data
+
+volumes:
+  ivorysql_data:
+  redis_data:
 ```
-sample
-├── controller
-├── service
-│   ├── SampleService
-│   └── impl
-├── mapper
-├── entity
-├── dto
-├── vo
-├── converter
-├── repository（可选）
-└── event（可选）
+
+> **连接信息：** IvorySQL 默认用户 `ivorysql`，密码 `123456`，端口 `5432`。Redis 密码 `123456`，端口 `6380`。
+>
+> **数据持久化：** 两个服务均通过 named volume 持久化数据。即使容器被删除重建，数据也不会丢失。如需完全重置，执行 `docker compose down -v`（会清空数据卷）。
+
+### 四、启动容器
+
+在 `docker-compose.yml` 所在目录执行：
+
+```shell
+docker compose up -d
 ```
 
-注意上面示例的其他业务模块还未确定暂时不用真正添加
+首次启动会拉取镜像（约 1-2 分钟）。`-d` 表示后台运行。
 
-DTO、VO 不建议放公共目录。common 只放真正公共的东西，Security 独立，数据库建议同步分模块，Service 不要写成"万能 Service"，可以内部拆分，保持每个公开方法职责清晰。
+此时若一切正常可在 Docker Desktop 的 Containers 界面看到 `ivorysql` 和 `redis` 两个容器，状态均为 Running。也可以用命令行验证：
 
-controller层全部采用 RESTful 风格，遵循 **RESTful + 统一返回体 + DTO 入参 + VO 出参 + 分页统一封装** 的规范
-
-类似：
-
-```
-@GetMapping("/{id}")
-public Result<UserVO> getById(@PathVariable Long id) {
-	return Result.success(userService.getById(id));
-}
-
-@PostMapping
-public Result<Long> create(@Valid @RequestBody UserCreateDTO dto) {
-	return Result.success(userService.create(dto));
-}
+```shell
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
-| 规范            | 推荐做法                                                     |
-| --------------- | ------------------------------------------------------------ |
-| URL 风格        | RESTful（`GET /users/{id}`、`POST /users`）                  |
-| Controller 职责 | 仅负责参数接收、校验、调用 Service、返回结果                 |
-| 入参            | `CreateDTO`、`UpdateDTO`、`QueryDTO` 等，不直接接收 Entity   |
-| 出参            | 返回 `VO`，不直接返回 Entity                                 |
-| 返回格式        | 统一 `Result<T>`                                             |
-| 参数校验        | `@Valid` + Jakarta Validation，配合全局异常处理              |
-| 分页            | 使用统一分页 DTO/VO，不直接暴露 MyBatis-Plus `Page`          |
-| 事务            | 只放在 Service 层                                            |
-| MyBatis-Plus    | `ServiceImpl` 内部使用，对 Controller 隐藏 `IService` 和 `Mapper` |
+### 五、初始化数据库
 
-MyBatis-Plus 不要暴露 IService，参数校验统一使用 Jakarta Validation等其他细节需要你详细制定
+1. 确认 IvorySQL 容器已在运行。
+2. 用数据库客户端连接 `127.0.0.1:5432`（用户 `ivorysql`，密码 `123456`）。
+3. 创建 `lims` 数据库（如果尚不存在）：
+   ```sql
+   CREATE DATABASE lims;
+   ```
+4. 导入初始化脚本：执行 `src/main/resources/db/init.sql`。该脚本会建表并插入种子数据（4 个部门、4 个角色、4 个用户：admin / liming / wangfang / zhaoqiang，密码均为 `123456`）。
 
-### 3. 实现完整的基于Spring Security和JWT的RBAC模型
+也可通过命令行一步完成：
 
-    （1）设计并构建完整的RBAC数据表，插入一些模拟数据
-    （2）JWT采用AccessToken+RefreshToken双Token方案
-        Access Token：15分钟； Refresh Token：7天；同时Refresh Token要存储进redis。
-        JWT签名算法采用HS256，Refresh Token使用256bit随机字符串。
-    （3）实现完整的登录，注销，鉴权功能接口
+```shell
+docker exec -e PGPASSWORD=123456 -i ivorysql psql -U ivorysql -d ivorysql -c "CREATE DATABASE lims;"
+docker exec -e PGPASSWORD=123456 -i ivorysql psql -U ivorysql -d lims < src/main/resources/db/init.sql
+```
 
+### 六、安装 Redis Insight（可选）
 
+Redis Insight 是 Redis 官方提供的 GUI 管理工具，方便查看缓存数据（如 refresh token、RSA 密钥等）。
+
+从 [redis.io/insight](https://redis.io/insight/) 下载安装。添加连接时填写：
+
+- Host: `127.0.0.1`
+- Port: `6380`
+- Password: `123456`
+
+### 七、安装 DBeaver（可选）
+
+DBeaver 是开源的通用数据库管理工具，支持 PostgreSQL/IvorySQL。
+
+从 [dbeaver.io](https://dbeaver.io/download/) 下载安装。添加连接时：
+
+- 数据库类型：PostgreSQL
+- Host: `127.0.0.1`
+- Port: `5432`
+- Database: `lims`
+- Username: `ivorysql`
+- Password: `123456`
+
+> **提示：** 在 DBeaver 的 "Driver properties" 中无需修改驱动，标准 PostgreSQL JDBC 驱动完全兼容 IvorySQL。
+
+### 八、启动项目
+
+确保数据库和 Redis 容器均已运行后：
+
+```bash
+./mvnw spring-boot:run
+```
+
+首次启动会下载 Maven 依赖（约 1-2 分钟）。启动完成后访问：
+
+- **API 文档（Swagger UI）：** `http://localhost:8080/swagger-ui.html`
+- **调试登录：** 在 Swagger UI 中调用 `POST /auth/login`，请求体 `{"username":"admin","cipherPwd":"123456"}`（dev 环境下 `keyId` 留空时 `cipherPwd` 作为明文密码处理）。获取 token 后点击右上角 **Authorize** 按钮填入。
+- **运行测试：** `./mvnw test`（需要 DB + Redis 运行中，测试直连 dev 环境数据库，通过 `@Transactional` 自动回滚）
+
+### 九、常见问题
+
+**Q: Docker 容器启动后立即退出？**
+```shell
+docker logs ivorysql
+docker logs redis
+```
+查看日志定位原因。常见原因：端口被占用（检查本机是否有其他 PostgreSQL/Redis 在运行）。
+
+**Q: 项目启动报 "Connection refused"？**
+确认两个容器都在运行：`docker ps`。如果容器在运行但仍连不上，检查 `application.yml` 中的连接信息是否与容器配置一致。
+
+**Q: 如何完全重置环境？**
+```shell
+# 在 docker-compose.yml 所在目录
+docker compose down -v   # 停止容器并删除数据卷（清空所有数据）
+docker compose up -d      # 重新启动并初始化
+# 然后重新执行第五步（创建 lims 库 + 导入 init.sql）
+```
+
+**Q: macOS / Linux 用户如何使用？**
+WSL2 步骤可跳过。Docker Desktop 在 macOS 上原生运行。其余步骤（docker-compose.yml、数据库初始化、项目启动）完全相同。
