@@ -9,8 +9,12 @@ import com.shou.lims.security.service.AuthService;
 import com.shou.lims.security.service.RsaKeyService;
 import com.shou.lims.security.vo.LoginVO;
 import com.shou.lims.security.vo.UserInfoVO;
+import com.shou.lims.organize.menu.service.MenuService;
+import com.shou.lims.organize.menu.vo.MenuRouteVO;
+import com.shou.lims.common.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -29,15 +34,18 @@ public class AuthController {
     private final AuthService authService;
     private final RsaKeyService rsaKeyService;
     private final Environment environment;
+    private final MenuService menuService;
 
     @GetMapping("/public-key")
-    @Operation(summary = "获取RSA公钥")
+    @Operation(summary = "获取RSA公钥", operationId = "getRsaPublicKey")
+    @SecurityRequirements
     public Result<RsaKeyService.RsaKeyPair> getPublicKey() {
         return Result.success(rsaKeyService.generateKeyPair());
     }
 
     @PostMapping("/login")
-    @Operation(summary = "用户登录（dev环境可不传keyId，cipherPwd直接作为明文密码）")
+    @Operation(summary = "用户登录（dev环境可不传keyId，cipherPwd直接作为明文密码）", operationId = "login")
+    @SecurityRequirements
     public Result<LoginVO> login(@Valid @RequestBody LoginRequest request) {
         String rawPassword;
         if (StringUtils.isBlank(request.getKeyId())) {
@@ -55,7 +63,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    @Operation(summary = "刷新Token")
+    @Operation(summary = "刷新Token", operationId = "refreshToken")
     public Result<LoginVO> refresh(@RequestHeader("Authorization") String authHeader,
                                    @Valid @RequestBody RefreshRequest request) {
         String token = extractBearerToken(authHeader);
@@ -63,7 +71,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "注销")
+    @Operation(summary = "注销", operationId = "logout")
     @PreAuthorize("isAuthenticated()")
     public Result<Void> logout(@RequestHeader("Authorization") String authHeader) {
         String token = extractBearerToken(authHeader);
@@ -72,10 +80,17 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "获取当前用户信息")
+    @Operation(summary = "获取当前用户信息", operationId = "getCurrentUser")
     @PreAuthorize("isAuthenticated()")
     public Result<UserInfoVO> me() {
         return Result.success(authService.getCurrentUserInfo());
+    }
+
+    @GetMapping("/menus")
+    @Operation(summary = "获取当前用户菜单", operationId = "getCurrentUserMenus")
+    @PreAuthorize("isAuthenticated()")
+    public Result<List<MenuRouteVO>> menus() {
+        return Result.success(menuService.getCurrentUserMenuTree(SecurityUtils.getCurrentUserId()));
     }
 
     private String extractBearerToken(String authHeader) {

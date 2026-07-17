@@ -53,6 +53,9 @@ jwt:
     expiration: 7
 
 springdoc:
+  paths-to-match:
+    - /auth/**
+    - /system/**
   swagger-ui:
     path: /swagger-ui.html
   api-docs:

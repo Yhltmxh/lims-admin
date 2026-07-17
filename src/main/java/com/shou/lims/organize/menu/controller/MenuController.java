@@ -10,6 +10,7 @@ import com.shou.lims.organize.menu.vo.MenuVO;
 import com.shou.lims.organize.log.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
@@ -28,28 +29,28 @@ public class MenuController {
     private final MenuService menuService;
 
     @GetMapping
-    @Operation(summary = "分页查询菜单")
+    @Operation(summary = "分页查询菜单", operationId = "listMenus")
     @PreAuthorize("hasAuthority('organize:menu:list')")
-    public Result<PageVO<MenuVO>> list(@Valid MenuQueryDTO query) {
+    public Result<PageVO<MenuVO>> list(@Valid @ParameterObject MenuQueryDTO query) {
         return Result.success(menuService.page(query));
     }
 
     @GetMapping("/tree")
-    @Operation(summary = "获取菜单树")
+    @Operation(summary = "获取菜单树", operationId = "getMenuTree")
     @PreAuthorize("hasAuthority('organize:menu:list')")
     public Result<List<MenuVO>> tree() {
         return Result.success(menuService.getTree());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "获取菜单详情")
+    @Operation(summary = "获取菜单详情", operationId = "getMenuById")
     @PreAuthorize("hasAuthority('organize:menu:list')")
     public Result<MenuVO> getById(@PathVariable @Positive Long id) {
         return Result.success(menuService.getById(id));
     }
 
     @PostMapping
-    @Operation(summary = "新增菜单")
+    @Operation(summary = "新增菜单", operationId = "createMenu")
     @PreAuthorize("hasAuthority('organize:menu:add')")
     @Log(module = "菜单管理", action = "新增菜单")
     public Result<Long> create(@Valid @RequestBody MenuCreateDTO dto) {
@@ -57,7 +58,7 @@ public class MenuController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "编辑菜单")
+    @Operation(summary = "编辑菜单", operationId = "updateMenu")
     @PreAuthorize("hasAuthority('organize:menu:edit')")
     @Log(module = "菜单管理", action = "编辑菜单")
     public Result<Void> update(@PathVariable @Positive Long id, @Valid @RequestBody MenuUpdateDTO dto) {
@@ -66,7 +67,7 @@ public class MenuController {
     }
 
     @DeleteMapping
-    @Operation(summary = "批量删除菜单")
+    @Operation(summary = "批量删除菜单", operationId = "deleteMenus")
     @PreAuthorize("hasAuthority('organize:menu:del')")
     @Log(module = "菜单管理", action = "删除菜单")
     public Result<Void> delete(@Valid @RequestBody @NotEmpty @Size(max = 500)

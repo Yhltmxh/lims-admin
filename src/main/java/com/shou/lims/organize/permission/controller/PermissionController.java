@@ -10,6 +10,7 @@ import com.shou.lims.organize.permission.vo.PermissionVO;
 import com.shou.lims.organize.log.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
@@ -28,21 +29,21 @@ public class PermissionController {
     private final PermissionService permissionService;
 
     @GetMapping
-    @Operation(summary = "分页查询权限")
+    @Operation(summary = "分页查询权限", operationId = "listPermissions")
     @PreAuthorize("hasAuthority('organize:permission:list')")
-    public Result<PageVO<PermissionVO>> list(@Valid PermissionQueryDTO query) {
+    public Result<PageVO<PermissionVO>> list(@Valid @ParameterObject PermissionQueryDTO query) {
         return Result.success(permissionService.page(query));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "获取权限详情")
+    @Operation(summary = "获取权限详情", operationId = "getPermissionById")
     @PreAuthorize("hasAuthority('organize:permission:list')")
     public Result<PermissionVO> getById(@PathVariable @Positive Long id) {
         return Result.success(permissionService.getById(id));
     }
 
     @PostMapping
-    @Operation(summary = "新增权限")
+    @Operation(summary = "新增权限", operationId = "createPermission")
     @PreAuthorize("hasAuthority('organize:permission:add')")
     @Log(module = "权限管理", action = "新增权限")
     public Result<Long> create(@Valid @RequestBody PermissionCreateDTO dto) {
@@ -50,7 +51,7 @@ public class PermissionController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "编辑权限")
+    @Operation(summary = "编辑权限", operationId = "updatePermission")
     @PreAuthorize("hasAuthority('organize:permission:edit')")
     @Log(module = "权限管理", action = "编辑权限")
     public Result<Void> update(@PathVariable @Positive Long id, @Valid @RequestBody PermissionUpdateDTO dto) {
@@ -59,7 +60,7 @@ public class PermissionController {
     }
 
     @DeleteMapping
-    @Operation(summary = "批量删除权限")
+    @Operation(summary = "批量删除权限", operationId = "deletePermissions")
     @PreAuthorize("hasAuthority('organize:permission:del')")
     @Log(module = "权限管理", action = "删除权限")
     public Result<Void> delete(@Valid @RequestBody @NotEmpty @Size(max = 500)

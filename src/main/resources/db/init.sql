@@ -147,7 +147,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_user_username_active ON sys_user(userna
 CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_role_name_active ON sys_role(name) WHERE is_delete = 0;
 CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_permission_code_active ON sys_permission(code) WHERE is_delete = 0;
 CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_dept_name_active ON sys_dept(name) WHERE is_delete = 0;
-CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_menu_name_active ON sys_menu(name) WHERE is_delete = 0;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_sys_menu_parent_name_active
+    ON sys_menu(parent_id, name) WHERE is_delete = 0;
 CREATE INDEX IF NOT EXISTS idx_sys_user_dept_id  ON sys_user(dept_id)  WHERE is_delete = 0;
 CREATE INDEX IF NOT EXISTS idx_sys_user_status   ON sys_user(status)   WHERE is_delete = 0;
 CREATE INDEX IF NOT EXISTS idx_sys_log_user_id   ON sys_log(user_id)   WHERE is_delete = 0;
@@ -206,11 +207,23 @@ INSERT INTO sys_permission (name, code, type, create_by, update_by) VALUES
 ('日志查询', 'organize:log:list',        2, 0, 0)
 ON CONFLICT DO NOTHING;
 
--- 菜单
-INSERT INTO sys_menu (name, path, component, icon, create_by, update_by) VALUES
-('系统管理', '/system',     'Layout',          'system',  0, 0),
-('用户管理', '/system/user','system/user/index','user',   0, 0),
-('角色管理', '/system/role','system/role/index','role',   0, 0)
+-- 菜单（运行时仅使用 path/name/icon，component 为前端静态路由注册键）
+INSERT INTO sys_menu (parent_id, name, path, component, icon, sort_order, create_by, update_by)
+VALUES (0, '系统管理', '/system', 'Layout', 'SettingOutlined', 10, 0, 0)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, name, path, component, icon, sort_order, create_by, update_by)
+SELECT p.id, v.name, v.path, v.component, v.icon, v.sort_order, 0, 0
+FROM sys_menu p
+CROSS JOIN (VALUES
+    ('用户管理', '/system/users',       'system/users',       'UserOutlined',       10),
+    ('角色管理', '/system/roles',       'system/roles',       'TeamOutlined',       20),
+    ('部门管理', '/system/departments', 'system/departments', 'ApartmentOutlined',  30),
+    ('权限管理', '/system/permissions', 'system/permissions', 'SafetyOutlined',     40),
+    ('菜单管理', '/system/menus',       'system/menus',       'MenuOutlined',       50),
+    ('操作日志', '/system/logs',        'system/logs',        'FileSearchOutlined', 60)
+) AS v(name, path, component, icon, sort_order)
+WHERE p.name = '系统管理' AND p.parent_id = 0 AND p.is_delete = 0
 ON CONFLICT DO NOTHING;
 
 -- admin 用户拥有 ROLE_ADMIN 角色
@@ -223,6 +236,9 @@ SELECT 1, id FROM sys_permission
 ON CONFLICT DO NOTHING;
 
 -- ROLE_ADMIN 拥有所有菜单
-INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3)
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT r.id, m.id
+FROM sys_role r
+CROSS JOIN sys_menu m
+WHERE r.name = 'ROLE_ADMIN' AND r.is_delete = 0 AND m.is_delete = 0
 ON CONFLICT DO NOTHING;

@@ -30,7 +30,8 @@ public class RsaKeyService {
 
             // Cache private key in Redis, TTL 5 minutes
             cacheService.set(GlobalConstants.REDIS_RSA_KEY_PREFIX + keyId,
-                    keyPair.getPrivate().getEncoded(), 5, TimeUnit.MINUTES);
+                    Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded()),
+                    5, TimeUnit.MINUTES);
 
             return new RsaKeyPair(keyId, publicKey);
         } catch (Exception e) {
@@ -39,14 +40,15 @@ public class RsaKeyService {
     }
 
     public String decrypt(String keyId, String cipherText) {
-        byte[] privateKeyBytes = cacheService.get(GlobalConstants.REDIS_RSA_KEY_PREFIX + keyId);
-        if (privateKeyBytes == null) {
+        String encodedPrivateKey = cacheService.get(GlobalConstants.REDIS_RSA_KEY_PREFIX + keyId);
+        if (encodedPrivateKey == null) {
             throw new BusinessException(400, "RSA密钥不存在或已过期");
         }
         // Delete private key after use (one-time use)
         cacheService.delete(GlobalConstants.REDIS_RSA_KEY_PREFIX + keyId);
 
         try {
+            byte[] privateKeyBytes = Base64.getDecoder().decode(encodedPrivateKey);
             java.security.spec.PKCS8EncodedKeySpec spec = new java.security.spec.PKCS8EncodedKeySpec(privateKeyBytes);
             java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
             javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("RSA/ECB/PKCS1Padding");

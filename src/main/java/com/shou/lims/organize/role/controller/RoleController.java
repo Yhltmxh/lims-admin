@@ -10,6 +10,7 @@ import com.shou.lims.organize.role.vo.RoleVO;
 import com.shou.lims.organize.log.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
@@ -28,21 +29,21 @@ public class RoleController {
     private final RoleService roleService;
 
     @GetMapping
-    @Operation(summary = "分页查询角色")
+    @Operation(summary = "分页查询角色", operationId = "listRoles")
     @PreAuthorize("hasAuthority('organize:role:list')")
-    public Result<PageVO<RoleVO>> list(@Valid RoleQueryDTO query) {
+    public Result<PageVO<RoleVO>> list(@Valid @ParameterObject RoleQueryDTO query) {
         return Result.success(roleService.page(query));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "获取角色详情")
+    @Operation(summary = "获取角色详情", operationId = "getRoleById")
     @PreAuthorize("hasAuthority('organize:role:list')")
     public Result<RoleVO> getById(@PathVariable @Positive Long id) {
         return Result.success(roleService.getById(id));
     }
 
     @PostMapping
-    @Operation(summary = "新增角色")
+    @Operation(summary = "新增角色", operationId = "createRole")
     @PreAuthorize("hasAuthority('organize:role:add')")
     @Log(module = "角色管理", action = "新增角色")
     public Result<Long> create(@Valid @RequestBody RoleCreateDTO dto) {
@@ -50,7 +51,7 @@ public class RoleController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "编辑角色")
+    @Operation(summary = "编辑角色", operationId = "updateRole")
     @PreAuthorize("hasAuthority('organize:role:edit')")
     @Log(module = "角色管理", action = "编辑角色")
     public Result<Void> update(@PathVariable @Positive Long id, @Valid @RequestBody RoleUpdateDTO dto) {
@@ -59,7 +60,7 @@ public class RoleController {
     }
 
     @DeleteMapping
-    @Operation(summary = "批量删除角色")
+    @Operation(summary = "批量删除角色", operationId = "deleteRoles")
     @PreAuthorize("hasAuthority('organize:role:del')")
     @Log(module = "角色管理", action = "删除角色")
     public Result<Void> delete(@Valid @RequestBody @NotEmpty @Size(max = 500)
@@ -69,7 +70,7 @@ public class RoleController {
     }
 
     @PostMapping("/{id}/permissions")
-    @Operation(summary = "分配权限")
+    @Operation(summary = "分配权限", operationId = "assignRolePermissions")
     @PreAuthorize("hasAuthority('organize:role:edit')")
     @Log(module = "角色管理", action = "分配权限")
     public Result<Void> assignPermissions(@PathVariable @Positive Long id,
@@ -80,7 +81,7 @@ public class RoleController {
     }
 
     @PostMapping("/{id}/menus")
-    @Operation(summary = "分配菜单")
+    @Operation(summary = "分配菜单", operationId = "assignRoleMenus")
     @PreAuthorize("hasAuthority('organize:role:edit')")
     @Log(module = "角色管理", action = "分配菜单")
     public Result<Void> assignMenus(@PathVariable @Positive Long id,

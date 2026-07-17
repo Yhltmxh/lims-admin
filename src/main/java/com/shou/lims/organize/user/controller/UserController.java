@@ -10,6 +10,7 @@ import com.shou.lims.organize.user.vo.UserVO;
 import com.shou.lims.organize.log.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
@@ -28,21 +29,21 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @Operation(summary = "分页查询用户")
+    @Operation(summary = "分页查询用户", operationId = "listUsers")
     @PreAuthorize("hasAuthority('organize:user:list')")
-    public Result<PageVO<UserVO>> list(@Valid UserQueryDTO query) {
+    public Result<PageVO<UserVO>> list(@Valid @ParameterObject UserQueryDTO query) {
         return Result.success(userService.page(query));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "获取用户详情")
+    @Operation(summary = "获取用户详情", operationId = "getUserById")
     @PreAuthorize("hasAuthority('organize:user:list')")
     public Result<UserVO> getById(@PathVariable @Positive Long id) {
         return Result.success(userService.getById(id));
     }
 
     @PostMapping
-    @Operation(summary = "新增用户")
+    @Operation(summary = "新增用户", operationId = "createUser")
     @PreAuthorize("hasAuthority('organize:user:add')")
     @Log(module = "用户管理", action = "新增用户")
     public Result<Long> create(@Valid @RequestBody UserCreateDTO dto) {
@@ -50,7 +51,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "编辑用户")
+    @Operation(summary = "编辑用户", operationId = "updateUser")
     @PreAuthorize("hasAuthority('organize:user:edit')")
     @Log(module = "用户管理", action = "编辑用户")
     public Result<Void> update(@PathVariable @Positive Long id, @Valid @RequestBody UserUpdateDTO dto) {
@@ -59,7 +60,7 @@ public class UserController {
     }
 
     @DeleteMapping
-    @Operation(summary = "批量删除用户")
+    @Operation(summary = "批量删除用户", operationId = "deleteUsers")
     @PreAuthorize("hasAuthority('organize:user:del')")
     @Log(module = "用户管理", action = "删除用户")
     public Result<Void> delete(@Valid @RequestBody @NotEmpty @Size(max = 500)

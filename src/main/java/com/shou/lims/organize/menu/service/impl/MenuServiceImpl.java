@@ -15,6 +15,7 @@ import com.shou.lims.organize.menu.entity.Menu;
 import com.shou.lims.organize.menu.mapper.MenuMapper;
 import com.shou.lims.organize.menu.service.MenuService;
 import com.shou.lims.organize.menu.vo.MenuVO;
+import com.shou.lims.organize.menu.vo.MenuRouteVO;
 import com.shou.lims.organize.role.mapper.RoleMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -26,6 +27,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -61,12 +63,15 @@ public class MenuServiceImpl implements MenuService {
     @Transactional
     public Long create(MenuCreateDTO dto) {
         validateParent(null, dto.getParentId());
+        Long parentId = dto.getParentId() == null ? 0L : dto.getParentId();
         Menu existing = menuMapper.selectOne(new LambdaQueryWrapper<Menu>()
+                .eq(Menu::getParentId, parentId)
                 .eq(Menu::getName, dto.getName()));
         if (existing != null) {
             throw new BusinessException(409, "菜单名称已存在");
         }
         Menu menu = menuConverter.toEntity(dto);
+        menu.setParentId(parentId);
         menu.setStatus(dto.getStatus() != null ? dto.getStatus() : StatusEnum.ENABLED.getValue());
         menuMapper.insert(menu);
         return menu.getId();
@@ -85,9 +90,13 @@ public class MenuServiceImpl implements MenuService {
         if (dto.getParentId() != null) {
             validateParent(id, dto.getParentId());
         }
-        if (StringUtils.isNotBlank(dto.getName())) {
+        if (StringUtils.isNotBlank(dto.getName()) || dto.getParentId() != null) {
+            Long parentId = dto.getParentId() != null ? dto.getParentId() : menu.getParentId();
+            String name = StringUtils.isNotBlank(dto.getName()) ? dto.getName() : menu.getName();
             Menu duplicate = menuMapper.selectOne(new LambdaQueryWrapper<Menu>()
-                    .eq(Menu::getName, dto.getName()).ne(Menu::getId, id));
+                    .eq(Menu::getParentId, parentId)
+                    .eq(Menu::getName, name)
+                    .ne(Menu::getId, id));
             if (duplicate != null) {
                 throw new BusinessException(409, "菜单名称已存在");
             }
@@ -131,7 +140,6 @@ public class MenuServiceImpl implements MenuService {
     @Override
     public List<MenuVO> getTree() {
         List<Menu> allMenus = menuMapper.selectList(new LambdaQueryWrapper<Menu>()
-                .eq(Menu::getStatus, StatusEnum.ENABLED.getValue())
                 .orderByAsc(Menu::getSortOrder));
         List<MenuVO> voList = menuConverter.toVOList(allMenus);
         Map<Long, List<MenuVO>> parentMap = voList.stream()
@@ -144,6 +152,62 @@ public class MenuServiceImpl implements MenuService {
                 roots.add(vo);
             }
             vo.setChildren(parentMap.getOrDefault(vo.getId(), new ArrayList<>()));
+        }
+        return roots;
+    }
+
+    @Override
+    public List<MenuRouteVO> getCurrentUserMenuTree(Long userId) {
+        List<Menu> assignedMenus = menuMapper.selectByUserId(userId);
+        if (assignedMenus.isEmpty()) {
+            return List.of();
+        }
+
+        List<Menu> enabledMenus = menuMapper.selectList(new LambdaQueryWrapper<Menu>()
+                .eq(Menu::getStatus, StatusEnum.ENABLED.getValue())
+                .orderByAsc(Menu::getSortOrder));
+        Map<Long, Menu> menuMap = enabledMenus.stream()
+                .collect(Collectors.toMap(Menu::getId, Function.identity()));
+
+        Set<Long> visibleIds = new HashSet<>();
+        for (Menu assignedMenu : assignedMenus) {
+            Menu current = assignedMenu;
+            while (current != null && visibleIds.add(current.getId())) {
+                Long parentId = current.getParentId();
+                current = parentId == null || parentId == 0L ? null : menuMap.get(parentId);
+            }
+        }
+
+        List<Menu> visibleMenus = enabledMenus.stream()
+                .filter(menu -> visibleIds.contains(menu.getId()))
+                .toList();
+        return buildRouteTree(visibleMenus);
+    }
+
+    private MenuRouteVO toRouteVO(Menu menu) {
+        MenuRouteVO route = new MenuRouteVO();
+        route.setKey(String.valueOf(menu.getId()));
+        route.setName(menu.getName());
+        route.setPath(menu.getPath());
+        route.setIcon(menu.getIcon());
+        route.setHideInMenu(Integer.valueOf(1).equals(menu.getHidden()));
+        route.setChildren(new ArrayList<>());
+        return route;
+    }
+
+    private List<MenuRouteVO> buildRouteTree(List<Menu> menus) {
+        Map<Long, MenuRouteVO> routeMap = menus.stream()
+                .collect(Collectors.toMap(Menu::getId, this::toRouteVO));
+        List<MenuRouteVO> roots = new ArrayList<>();
+        for (Menu menu : menus) {
+            MenuRouteVO route = routeMap.get(menu.getId());
+            Long parentId = menu.getParentId();
+            MenuRouteVO parent = parentId == null ? null : routeMap.get(parentId);
+            if (parent == null || parentId == 0L) {
+                roots.add(route);
+            } else {
+                parent.getChildren().add(route);
+            }
         }
         return roots;
     }

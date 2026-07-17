@@ -1,5 +1,6 @@
 package com.shou.lims.common.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,7 +9,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Result<T> {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private Integer code;
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private String message;
     private T data;
 
