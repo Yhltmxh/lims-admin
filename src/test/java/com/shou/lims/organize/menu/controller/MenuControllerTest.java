@@ -18,4 +18,14 @@ class MenuControllerTest extends BaseAuthenticatedTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isArray());
     }
+
+    @Test
+    void shouldListPermissionOptionsForMenuBinding() throws Exception {
+        mockMvc.perform(get("/system/menus/permission-options")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].code").isNotEmpty());
+    }
 }

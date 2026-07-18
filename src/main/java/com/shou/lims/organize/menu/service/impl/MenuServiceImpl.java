@@ -15,6 +15,7 @@ import com.shou.lims.organize.menu.entity.Menu;
 import com.shou.lims.organize.menu.mapper.MenuMapper;
 import com.shou.lims.organize.menu.service.MenuService;
 import com.shou.lims.organize.menu.vo.MenuVO;
+import com.shou.lims.organize.menu.vo.MenuPermissionOptionVO;
 import com.shou.lims.organize.menu.vo.MenuRouteVO;
 import com.shou.lims.organize.role.mapper.RoleMapper;
 import com.shou.lims.organize.permission.entity.Permission;
@@ -69,7 +70,8 @@ public class MenuServiceImpl implements MenuService {
     @Transactional
     public Long create(MenuCreateDTO dto) {
         validateParent(null, dto.getParentId());
-        validateRequiredPermission(dto.getRequiredPermissionId());
+        Long requiredPermissionId = normalizeRequiredPermissionId(dto.getRequiredPermissionId());
+        validateRequiredPermission(requiredPermissionId);
         Long parentId = dto.getParentId() == null ? 0L : dto.getParentId();
         Menu existing = menuMapper.selectOne(new LambdaQueryWrapper<Menu>()
                 .eq(Menu::getParentId, parentId)
@@ -80,7 +82,7 @@ public class MenuServiceImpl implements MenuService {
         Menu menu = menuConverter.toEntity(dto);
         menu.setParentId(parentId);
         menu.setStatus(dto.getStatus() != null ? dto.getStatus() : StatusEnum.ENABLED.getValue());
-        menu.setRequiredPermissionId(dto.getRequiredPermissionId());
+        menu.setRequiredPermissionId(requiredPermissionId);
         menuMapper.insert(menu);
         return menu.getId();
     }
@@ -99,7 +101,7 @@ public class MenuServiceImpl implements MenuService {
             validateParent(id, dto.getParentId());
         }
         if (dto.getRequiredPermissionId() != null) {
-            validateRequiredPermission(dto.getRequiredPermissionId());
+            validateRequiredPermission(normalizeRequiredPermissionId(dto.getRequiredPermissionId()));
         }
         if (StringUtils.isNotBlank(dto.getName()) || dto.getParentId() != null) {
             Long parentId = dto.getParentId() != null ? dto.getParentId() : menu.getParentId();
@@ -126,7 +128,9 @@ public class MenuServiceImpl implements MenuService {
         if (dto.getSortOrder() != null) menu.setSortOrder(dto.getSortOrder());
         if (dto.getHidden() != null) menu.setHidden(dto.getHidden());
         if (dto.getStatus() != null) menu.setStatus(dto.getStatus());
-        if (dto.getRequiredPermissionId() != null) menu.setRequiredPermissionId(dto.getRequiredPermissionId());
+        if (dto.getRequiredPermissionId() != null) {
+            menu.setRequiredPermissionId(normalizeRequiredPermissionId(dto.getRequiredPermissionId()));
+        }
         if (menuMapper.updateById(menu) == 0) {
             throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
         }
@@ -202,6 +206,21 @@ public class MenuServiceImpl implements MenuService {
                 .filter(menu -> visibleIds.contains(menu.getId()))
                 .toList();
         return buildRouteTree(visibleMenus);
+    }
+
+    @Override
+    public List<MenuPermissionOptionVO> permissionOptions() {
+        return permissionMapper.selectList(new LambdaQueryWrapper<Permission>()
+                        .eq(Permission::getStatus, StatusEnum.ENABLED.getValue())
+                        .orderByAsc(Permission::getCode))
+                .stream()
+                .map(permission -> new MenuPermissionOptionVO(
+                        permission.getId(), permission.getName(), permission.getCode()))
+                .toList();
+    }
+
+    private Long normalizeRequiredPermissionId(Long permissionId) {
+        return permissionId != null && permissionId == 0L ? null : permissionId;
     }
 
     private void validateRequiredPermission(Long permissionId) {

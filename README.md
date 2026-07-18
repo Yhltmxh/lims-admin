@@ -39,6 +39,9 @@ psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/init.sql
 
 ```bash
 psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-16-security-hardening.sql
+psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-17-frontend-integration.sql
+psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-18-user-permission.sql
+psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-18-permission-followup.sql
 ```
 
 模拟数据包含 4 个部门、4 个角色、4 个用户（密码均为 BCrypt 加密的 `123456`）。

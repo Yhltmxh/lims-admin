@@ -150,7 +150,12 @@ public class UserServiceImpl implements UserService {
         if (ids.contains(SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(400, "不能删除当前登录用户");
         }
-        long deletingSuperAdmins = ids.stream().filter(id -> roleMapper.selectByUserId(id).stream()
+        userRoleMapper.lockRoleByName(GlobalConstants.SUPER_ADMIN_ROLE);
+        Set<Long> enabledDeletingUserIds = userMapper.selectBatchIds(ids).stream()
+                .filter(user -> StatusEnum.ENABLED.getValue().equals(user.getStatus()))
+                .map(User::getId)
+                .collect(Collectors.toSet());
+        long deletingSuperAdmins = enabledDeletingUserIds.stream().filter(id -> roleMapper.selectByUserId(id).stream()
                 .anyMatch(role -> GlobalConstants.SUPER_ADMIN_ROLE.equals(role.getName()))).count();
         long enabledSuperAdmins = userRoleMapper.countEnabledUsersByRoleNameExcluding(
                 GlobalConstants.SUPER_ADMIN_ROLE, null);
@@ -170,6 +175,7 @@ public class UserServiceImpl implements UserService {
     }
 
     private void protectLastSuperAdmin(Long userId, List<Long> newRoleIds, Integer newStatus) {
+        userRoleMapper.lockRoleByName(GlobalConstants.SUPER_ADMIN_ROLE);
         boolean currentlySuper = roleMapper.selectByUserId(userId).stream()
                 .anyMatch(role -> GlobalConstants.SUPER_ADMIN_ROLE.equals(role.getName()));
         if (!currentlySuper) {
@@ -230,7 +236,7 @@ public class UserServiceImpl implements UserService {
         Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, Function.identity()));
         for (UserVO vo : records) {
             User user = userMap.get(vo.getId());
-            Dept dept = user != null ? deptMap.get(user.getDeptId()) : null;
+            Dept dept = user != null && user.getDeptId() != null ? deptMap.get(user.getDeptId()) : null;
             vo.setDeptName(dept != null ? dept.getName() : null);
             List<UserRoleRow> rows = roleRows.getOrDefault(vo.getId(), List.of());
             vo.setRoleIds(rows.stream().map(UserRoleRow::getRoleId).toList());

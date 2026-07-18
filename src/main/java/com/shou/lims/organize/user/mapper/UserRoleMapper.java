@@ -57,10 +57,18 @@ public interface UserRoleMapper {
             INNER JOIN sys_role r ON r.id = ur.role_id
             WHERE r.name = #{roleName} AND r.status = 1 AND r.is_delete = 0
               AND u.status = 1 AND u.is_delete = 0
-              AND (#{excludeUserId} IS NULL OR u.id != #{excludeUserId})
+              AND (CAST(#{excludeUserId} AS BIGINT) IS NULL
+                   OR u.id != CAST(#{excludeUserId} AS BIGINT))
             """)
     long countEnabledUsersByRoleNameExcluding(@Param("roleName") String roleName,
                                                @Param("excludeUserId") Long excludeUserId);
+
+    @Select("""
+            SELECT id FROM sys_role
+            WHERE name = #{roleName} AND is_delete = 0
+            FOR UPDATE
+            """)
+    Long lockRoleByName(@Param("roleName") String roleName);
 
     @Select("""
             <script>

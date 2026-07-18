@@ -39,6 +39,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EffectivePermissionServiceImpl implements EffectivePermissionService {
     private static final long MAX_CACHE_SECONDS = 300;
+    private static final Set<String> LIST_DEPENDENT_ACTIONS = Set.of(
+            "add", "edit", "del", "audit", "force-logout");
+    private static final Map<String, String> EXPLICIT_DEPENDENCIES = Map.of(
+            "organize:user-permission:list", "organize:user:list");
 
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
@@ -96,12 +100,15 @@ public class EffectivePermissionServiceImpl implements EffectivePermissionServic
             }
         }
 
+        Set<String> enabledCodes = new LinkedHashSet<>(permissionMapper.selectAllEnabledCodes());
         Set<String> effective = superAdmin
-                ? new LinkedHashSet<>(permissionMapper.selectAllEnabledCodes())
+                ? new LinkedHashSet<>(enabledCodes)
                 : new LinkedHashSet<>(rolePermissions);
         if (!superAdmin) {
             effective.addAll(allows);
+            expandDependencies(effective, enabledCodes);
             effective.removeAll(denies);
+            pruneMissingDependencies(effective, enabledCodes);
         }
 
         EffectivePermissionSnapshot snapshot = new EffectivePermissionSnapshot(
@@ -192,6 +199,43 @@ public class EffectivePermissionServiceImpl implements EffectivePermissionServic
         LocalDateTime from = permission.getValidFrom();
         LocalDateTime expiresAt = permission.getExpiresAt();
         return (from == null || !now.isBefore(from)) && (expiresAt == null || now.isBefore(expiresAt));
+    }
+
+    private void expandDependencies(Set<String> permissions, Set<String> enabledCodes) {
+        boolean changed;
+        do {
+            changed = false;
+            for (String permission : List.copyOf(permissions)) {
+                String dependency = dependencyOf(permission);
+                if (dependency != null && enabledCodes.contains(dependency)) {
+                    changed |= permissions.add(dependency);
+                }
+            }
+        } while (changed);
+    }
+
+    private void pruneMissingDependencies(Set<String> permissions, Set<String> enabledCodes) {
+        boolean changed;
+        do {
+            changed = permissions.removeIf(permission -> {
+                String dependency = dependencyOf(permission);
+                return dependency != null
+                        && (!enabledCodes.contains(dependency) || !permissions.contains(dependency));
+            });
+        } while (changed);
+    }
+
+    private String dependencyOf(String permission) {
+        String explicit = EXPLICIT_DEPENDENCIES.get(permission);
+        if (explicit != null) {
+            return explicit;
+        }
+        int separator = permission.lastIndexOf(':');
+        if (separator < 0 || !LIST_DEPENDENT_ACTIONS.contains(permission.substring(separator + 1))) {
+            return null;
+        }
+        String listPermission = permission.substring(0, separator) + ":list";
+        return listPermission;
     }
 
     private String key(Long userId) {

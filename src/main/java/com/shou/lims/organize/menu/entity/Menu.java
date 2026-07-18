@@ -1,6 +1,8 @@
 package com.shou.lims.organize.menu.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.shou.lims.common.entity.BaseEntity;
@@ -21,5 +23,6 @@ public class Menu extends BaseEntity {
     private Integer sortOrder;
     private Integer hidden;
     private Integer status;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long requiredPermissionId;
 }

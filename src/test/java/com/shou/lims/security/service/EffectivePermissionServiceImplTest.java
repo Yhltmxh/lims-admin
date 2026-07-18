@@ -66,6 +66,8 @@ class EffectivePermissionServiceImplTest {
         Permission add = permission(2L, "organize:user:add");
         when(permissionMapper.selectByUserId(2L)).thenReturn(List.of(list));
         when(permissionMapper.selectBatchIds(any())).thenReturn(List.of(list, add));
+        when(permissionMapper.selectAllEnabledCodes()).thenReturn(
+                List.of("organize:user:add", "organize:user:list"));
 
         UserPermission deny = grant(1L, PermissionEffect.DENY, now.minusHours(1), now.plusHours(1));
         UserPermission allow = grant(2L, PermissionEffect.ALLOW, now.minusHours(1), now.plusHours(2));
@@ -73,10 +75,42 @@ class EffectivePermissionServiceImplTest {
 
         EffectivePermissionSnapshot result = service.resolve(2L);
 
-        assertThat(result.getPermissions()).containsExactly("organize:user:add");
+        assertThat(result.getPermissions()).isEmpty();
         assertThat(result.getDenyPermissions()).containsExactly("organize:user:list");
         assertThat(result.getAllowPermissions()).containsExactly("organize:user:add");
         assertThat(result.getNextBoundary()).isEqualTo(now.plusHours(1));
+    }
+
+    @Test
+    void actionPermissionShouldImplyRequiredListPermissions() {
+        when(roleMapper.selectByUserId(2L)).thenReturn(List.of(role("ROLE_OPERATOR")));
+        Permission add = permission(2L, "organize:user-permission:add");
+        when(permissionMapper.selectByUserId(2L)).thenReturn(List.of(add));
+        when(permissionMapper.selectAllEnabledCodes()).thenReturn(List.of(
+                "organize:user-permission:add",
+                "organize:user-permission:list",
+                "organize:user:list"));
+        when(userPermissionMapper.selectAllByUserId(2L)).thenReturn(List.of());
+
+        EffectivePermissionSnapshot result = service.resolve(2L);
+
+        assertThat(result.getPermissions()).containsExactly(
+                "organize:user-permission:add",
+                "organize:user-permission:list",
+                "organize:user:list");
+    }
+
+    @Test
+    void actionPermissionShouldBeRemovedWhenItsListPermissionIsDisabled() {
+        when(roleMapper.selectByUserId(2L)).thenReturn(List.of(role("ROLE_OPERATOR")));
+        Permission add = permission(2L, "organize:dept:add");
+        when(permissionMapper.selectByUserId(2L)).thenReturn(List.of(add));
+        when(permissionMapper.selectAllEnabledCodes()).thenReturn(List.of("organize:dept:add"));
+        when(userPermissionMapper.selectAllByUserId(2L)).thenReturn(List.of());
+
+        EffectivePermissionSnapshot result = service.resolve(2L);
+
+        assertThat(result.getPermissions()).isEmpty();
     }
 
     @Test

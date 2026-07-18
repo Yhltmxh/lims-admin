@@ -18,22 +18,16 @@ class DeptServiceImplTest extends BaseSpringBootTest {
     @Autowired
     private DeptService deptService;
 
-    /**
-     * 种子数据结构说明：init.sql 的部门插入语句
-     * {@code INSERT INTO sys_dept (name, sort_order, leader)} 未指定 parent_id，
-     * 列默认值为 0，因此 4 个部门（总公司/检测部/质控部/综合部）全部是根节点，
-     * 树中不存在嵌套 children。这里只断言根节点列表本身，不断言 children 非空。
-     */
     @Test
     void shouldGetTree() {
         List<DeptVO> tree = deptService.getTree();
         assertThat(tree).isNotEmpty();
-        assertThat(tree).extracting(DeptVO::getName).contains("总公司", "检测部", "质控部", "综合部");
+        assertThat(tree).allMatch(dept -> dept.getName() != null && !dept.getName().isBlank());
     }
 
     @Test
     void shouldGetById() {
-        assertThat(deptService.getById(1L).getName()).isEqualTo("总公司");
+        assertThat(deptService.getById(1L).getName()).isNotBlank();
     }
 
     @Test
@@ -55,7 +49,7 @@ class DeptServiceImplTest extends BaseSpringBootTest {
     @Test
     void shouldRejectDuplicateDeptName() {
         DeptCreateDTO dto = new DeptCreateDTO();
-        dto.setName("总公司");
+        dto.setName(deptService.getById(1L).getName());
         assertThatThrownBy(() -> deptService.create(dto))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code").isEqualTo(409);

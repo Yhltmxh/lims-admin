@@ -7,6 +7,7 @@ import com.shou.lims.organize.menu.dto.MenuQueryDTO;
 import com.shou.lims.organize.menu.dto.MenuUpdateDTO;
 import com.shou.lims.organize.menu.service.MenuService;
 import com.shou.lims.organize.menu.vo.MenuVO;
+import com.shou.lims.organize.menu.vo.MenuPermissionOptionVO;
 import com.shou.lims.organize.log.annotation.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +41,13 @@ public class MenuController {
     @PreAuthorize("hasAuthority('organize:menu:list')")
     public Result<List<MenuVO>> tree() {
         return Result.success(menuService.getTree());
+    }
+
+    @GetMapping("/permission-options")
+    @Operation(summary = "查询菜单可绑定权限", operationId = "listMenuPermissionOptions")
+    @PreAuthorize("hasAnyAuthority('organize:menu:list','organize:menu:add','organize:menu:edit')")
+    public Result<List<MenuPermissionOptionVO>> permissionOptions() {
+        return Result.success(menuService.permissionOptions());
     }
 
     @GetMapping("/{id}")

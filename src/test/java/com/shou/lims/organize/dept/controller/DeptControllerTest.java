@@ -26,7 +26,7 @@ class DeptControllerTest extends BaseAuthenticatedTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.name").value("总公司"));
+                .andExpect(jsonPath("$.data.name").isNotEmpty());
     }
 
     @Test

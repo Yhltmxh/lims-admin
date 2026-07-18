@@ -112,6 +112,7 @@ public class AuthServiceImpl implements AuthService {
         vo.setAvatar(user.getAvatar());
         vo.setRoles(snapshot.getRoles().stream().toList());
         vo.setPermissions(snapshot.getPermissions().stream().toList());
+        vo.setNextPermissionBoundary(snapshot.getNextBoundary());
         return vo;
     }
 }

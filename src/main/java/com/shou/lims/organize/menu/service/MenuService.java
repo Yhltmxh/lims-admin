@@ -6,6 +6,7 @@ import com.shou.lims.organize.menu.dto.MenuQueryDTO;
 import com.shou.lims.organize.menu.dto.MenuUpdateDTO;
 import com.shou.lims.organize.menu.vo.MenuVO;
 import com.shou.lims.organize.menu.vo.MenuRouteVO;
+import com.shou.lims.organize.menu.vo.MenuPermissionOptionVO;
 import java.util.List;
 
 public interface MenuService {
@@ -16,4 +17,5 @@ public interface MenuService {
     void delete(List<Long> ids);
     List<MenuVO> getTree();
     List<MenuRouteVO> getCurrentUserMenuTree(Long userId);
+    List<MenuPermissionOptionVO> permissionOptions();
 }

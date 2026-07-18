@@ -2,6 +2,7 @@ package com.shou.lims.security.vo;
 
 import lombok.Data;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Data
 public class UserInfoVO {
@@ -11,4 +12,5 @@ public class UserInfoVO {
     private String avatar;
     private List<String> permissions;
     private List<String> roles;
+    private LocalDateTime nextPermissionBoundary;
 }
