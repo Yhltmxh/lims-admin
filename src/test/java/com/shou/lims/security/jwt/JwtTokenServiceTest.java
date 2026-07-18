@@ -35,6 +35,17 @@ class JwtTokenServiceTest extends BaseSpringBootTest {
     }
 
     @Test
+    void shouldGenerateUniqueAccessTokensWithinTheSameSecond() {
+        String firstToken = jwtTokenService.generateAccessToken(1L, "admin", List.of());
+        String secondToken = jwtTokenService.generateAccessToken(1L, "admin", List.of());
+
+        assertThat(secondToken).isNotEqualTo(firstToken);
+        assertThat(JWT.decode(firstToken).getId()).isNotBlank();
+        assertThat(JWT.decode(secondToken).getId())
+                .isNotEqualTo(JWT.decode(firstToken).getId());
+    }
+
+    @Test
     void shouldVerifyValidToken() {
         String token = jwtTokenService.generateAccessToken(1L, "admin", List.of());
         DecodedJWT jwt = jwtTokenService.verifyAccessToken(token);

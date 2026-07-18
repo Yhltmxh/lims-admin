@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class JwtTokenService {
                 .withIssuer(ISSUER)
                 .withAudience(AUDIENCE)
                 .withSubject(String.valueOf(userId))
+                .withJWTId(UUID.randomUUID().toString())
                 .withClaim("username", username)
                 .withClaim("permissions", String.join(",", permissions != null ? permissions : List.of()))
                 .withIssuedAt(Date.from(now))
