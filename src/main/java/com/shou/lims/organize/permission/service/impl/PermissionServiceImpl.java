@@ -16,6 +16,9 @@ import com.shou.lims.organize.permission.mapper.PermissionMapper;
 import com.shou.lims.organize.permission.service.PermissionService;
 import com.shou.lims.organize.permission.vo.PermissionVO;
 import com.shou.lims.organize.role.mapper.RoleMapper;
+import com.shou.lims.organize.user.mapper.UserRoleMapper;
+import com.shou.lims.organize.userpermission.mapper.UserPermissionMapper;
+import com.shou.lims.security.service.EffectivePermissionService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,9 @@ public class PermissionServiceImpl implements PermissionService {
     private final PermissionMapper permissionMapper;
     private final PermissionConverter permissionConverter;
     private final RoleMapper roleMapper;
+    private final UserRoleMapper userRoleMapper;
+    private final UserPermissionMapper userPermissionMapper;
+    private final EffectivePermissionService effectivePermissionService;
 
     @Override
     public PageVO<PermissionVO> page(PermissionQueryDTO query) {
@@ -106,6 +112,7 @@ public class PermissionServiceImpl implements PermissionService {
         if (permissionMapper.updateById(permission) == 0) {
             throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
         }
+        invalidatePermissionUsers(id);
     }
 
     @Override
@@ -115,6 +122,18 @@ public class PermissionServiceImpl implements PermissionService {
             return;
         }
         List<Long> distinctIds = new ArrayList<>(new LinkedHashSet<>(ids));
+        Set<Long> affectedUserIds = new HashSet<>();
+        for (Long permissionId : distinctIds) {
+            List<Long> roleIds = roleMapper.selectRoleIdsByPermissionId(permissionId);
+            if (!roleIds.isEmpty()) {
+                affectedUserIds.addAll(userRoleMapper.selectUserIdsByRoleIds(roleIds));
+            }
+        }
+        boolean hasDirectGrants = distinctIds.stream()
+                .anyMatch(id -> !userPermissionMapper.selectUserIdsByPermissionId(id).isEmpty());
+        if (hasDirectGrants) {
+            throw new BusinessException(400, "权限存在用户直接授权，请先撤销相关授权");
+        }
         long childCount = permissionMapper.selectCount(new LambdaQueryWrapper<Permission>()
                 .in(Permission::getParentId, distinctIds)
                 .notIn(Permission::getId, distinctIds));
@@ -123,6 +142,15 @@ public class PermissionServiceImpl implements PermissionService {
         }
         roleMapper.deleteRolePermissionsByPermissionIds(distinctIds);
         permissionMapper.deleteBatchIds(distinctIds);
+        effectivePermissionService.invalidateAll(affectedUserIds);
+    }
+
+    private void invalidatePermissionUsers(Long permissionId) {
+        List<Long> roleIds = roleMapper.selectRoleIdsByPermissionId(permissionId);
+        if (!roleIds.isEmpty()) {
+            effectivePermissionService.invalidateAll(userRoleMapper.selectUserIdsByRoleIds(roleIds));
+        }
+        effectivePermissionService.invalidateAll(userPermissionMapper.selectUserIdsByPermissionId(permissionId));
     }
 
     private void validateParent(Long currentId, Long parentId) {

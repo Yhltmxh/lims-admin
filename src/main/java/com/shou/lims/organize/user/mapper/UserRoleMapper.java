@@ -43,6 +43,27 @@ public interface UserRoleMapper {
 
     @Select("""
             <script>
+            SELECT DISTINCT user_id FROM sys_user_role WHERE role_id IN
+            <foreach collection="roleIds" item="roleId" open="(" separator="," close=")">
+                #{roleId}
+            </foreach>
+            </script>
+            """)
+    List<Long> selectUserIdsByRoleIds(@Param("roleIds") Collection<Long> roleIds);
+
+    @Select("""
+            SELECT COUNT(*) FROM sys_user u
+            INNER JOIN sys_user_role ur ON ur.user_id = u.id
+            INNER JOIN sys_role r ON r.id = ur.role_id
+            WHERE r.name = #{roleName} AND r.status = 1 AND r.is_delete = 0
+              AND u.status = 1 AND u.is_delete = 0
+              AND (#{excludeUserId} IS NULL OR u.id != #{excludeUserId})
+            """)
+    long countEnabledUsersByRoleNameExcluding(@Param("roleName") String roleName,
+                                               @Param("excludeUserId") Long excludeUserId);
+
+    @Select("""
+            <script>
             SELECT ur.user_id AS user_id, r.id AS role_id, r.name AS role_name
             FROM sys_user_role ur
             INNER JOIN sys_role r ON r.id = ur.role_id

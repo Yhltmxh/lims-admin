@@ -1,4 +1,6 @@
 -- ============================================
+
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 -- LIMS 基础设施数据库初始化脚本
 -- IvorySQL (PostgreSQL compatible)
 -- ============================================
@@ -40,6 +42,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
     avatar      VARCHAR(256),
     dept_id     BIGINT REFERENCES sys_dept(id),
     status      SMALLINT      NOT NULL DEFAULT 1 CHECK (status IN (0, 1)),
+    auth_version INT          NOT NULL DEFAULT 0 CHECK (auth_version >= 0),
     create_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     create_by   BIGINT,
@@ -91,6 +94,7 @@ CREATE TABLE IF NOT EXISTS sys_menu (
     sort_order  INT           DEFAULT 0,
     hidden      SMALLINT      NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1)),
     status      SMALLINT      NOT NULL DEFAULT 1 CHECK (status IN (0, 1)),
+    required_permission_id BIGINT REFERENCES sys_permission(id),
     create_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     create_by   BIGINT,
@@ -122,6 +126,59 @@ CREATE TABLE IF NOT EXISTS sys_role_menu (
     menu_id     BIGINT NOT NULL REFERENCES sys_menu(id) ON DELETE CASCADE,
     UNIQUE (role_id, menu_id)
 );
+
+-- 用户直接权限表（ALLOW=1，DENY=2；时间区间为左闭右开）
+CREATE TABLE IF NOT EXISTS sys_user_permission (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id         BIGINT       NOT NULL REFERENCES sys_user(id),
+    permission_id   BIGINT       NOT NULL REFERENCES sys_permission(id),
+    effect          SMALLINT     NOT NULL CHECK (effect IN (1, 2)),
+    valid_from      TIMESTAMP,
+    expires_at      TIMESTAMP,
+    reason          VARCHAR(256) NOT NULL,
+    grant_by        BIGINT       NOT NULL REFERENCES sys_user(id),
+    create_time     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    update_time     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    create_by       BIGINT,
+    update_by       BIGINT,
+    is_delete       SMALLINT     NOT NULL DEFAULT 0 CHECK (is_delete IN (0, 1)),
+    version         INT          NOT NULL DEFAULT 0 CHECK (version >= 0),
+    CONSTRAINT ck_sys_user_permission_time
+        CHECK (expires_at IS NULL OR valid_from IS NULL OR expires_at > valid_from)
+);
+
+ALTER TABLE sys_user_permission DROP CONSTRAINT IF EXISTS ex_sys_user_permission_time;
+ALTER TABLE sys_user_permission ADD CONSTRAINT ex_sys_user_permission_time
+    EXCLUDE USING gist (
+        user_id WITH =,
+        permission_id WITH =,
+        tsrange(COALESCE(valid_from, '-infinity'::timestamp),
+                COALESCE(expires_at, 'infinity'::timestamp), '[)') WITH &&
+    ) WHERE (is_delete = 0);
+
+CREATE INDEX IF NOT EXISTS idx_sys_user_permission_user
+    ON sys_user_permission(user_id) WHERE is_delete = 0;
+CREATE INDEX IF NOT EXISTS idx_sys_user_permission_boundary
+    ON sys_user_permission(user_id, valid_from, expires_at) WHERE is_delete = 0;
+
+-- 用户直接权限不可变审计表
+CREATE TABLE IF NOT EXISTS sys_user_permission_audit (
+    id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    grant_id          BIGINT,
+    user_id           BIGINT       NOT NULL,
+    permission_id     BIGINT       NOT NULL,
+    operation         VARCHAR(16)  NOT NULL,
+    before_data       JSONB,
+    after_data        JSONB,
+    reason            VARCHAR(256) NOT NULL,
+    operator_id       BIGINT       NOT NULL,
+    operator_username VARCHAR(32)  NOT NULL,
+    request_id        VARCHAR(64),
+    ip                VARCHAR(45),
+    create_time       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_sys_user_permission_audit_user
+    ON sys_user_permission_audit(user_id, create_time DESC);
 
 -- 操作日志表
 CREATE TABLE IF NOT EXISTS sys_log (
@@ -204,7 +261,13 @@ INSERT INTO sys_permission (name, code, type, create_by, update_by) VALUES
 ('新增权限', 'organize:permission:add',  2, 0, 0),
 ('编辑权限', 'organize:permission:edit', 2, 0, 0),
 ('删除权限', 'organize:permission:del',  2, 0, 0),
-('日志查询', 'organize:log:list',        2, 0, 0)
+('日志查询', 'organize:log:list',        1, 0, 0),
+('查询用户直接权限', 'organize:user-permission:list', 2, 0, 0),
+('新增用户直接权限', 'organize:user-permission:add', 2, 0, 0),
+('编辑用户直接权限', 'organize:user-permission:edit', 2, 0, 0),
+('撤销用户直接权限', 'organize:user-permission:del', 2, 0, 0),
+('查询权限审计', 'organize:user-permission:audit', 2, 0, 0),
+('强制用户下线', 'organize:user:force-logout', 2, 0, 0)
 ON CONFLICT DO NOTHING;
 
 -- 菜单（运行时仅使用 path/name/icon，component 为前端静态路由注册键）
@@ -225,6 +288,20 @@ CROSS JOIN (VALUES
 ) AS v(name, path, component, icon, sort_order)
 WHERE p.name = '系统管理' AND p.parent_id = 0 AND p.is_delete = 0
 ON CONFLICT DO NOTHING;
+
+UPDATE sys_menu m
+SET required_permission_id = p.id
+FROM sys_permission p
+WHERE p.code = CASE m.name
+    WHEN '用户管理' THEN 'organize:user:list'
+    WHEN '角色管理' THEN 'organize:role:list'
+    WHEN '部门管理' THEN 'organize:dept:list'
+    WHEN '权限管理' THEN 'organize:permission:list'
+    WHEN '菜单管理' THEN 'organize:menu:list'
+    WHEN '操作日志' THEN 'organize:log:list'
+END
+AND m.name IN ('用户管理', '角色管理', '部门管理', '权限管理', '菜单管理', '操作日志')
+AND m.is_delete = 0 AND p.is_delete = 0;
 
 -- admin 用户拥有 ROLE_ADMIN 角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1)

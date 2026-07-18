@@ -20,4 +20,11 @@ public interface PermissionMapper extends BaseMapper<Permission> {
               AND p.is_delete = 0 AND p.status = 1
             """)
     List<Permission> selectByUserId(Long userId);
+
+    @Select("""
+            SELECT code FROM sys_permission
+            WHERE is_delete = 0 AND status = 1
+            ORDER BY code
+            """)
+    List<String> selectAllEnabledCodes();
 }

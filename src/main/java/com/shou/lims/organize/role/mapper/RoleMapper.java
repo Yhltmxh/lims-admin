@@ -34,6 +34,9 @@ public interface RoleMapper extends BaseMapper<Role> {
             + "WHERE rp.role_id = #{roleId} AND p.is_delete = 0 ORDER BY rp.permission_id")
     List<Long> selectRolePermissionIds(@Param("roleId") Long roleId);
 
+    @Select("SELECT DISTINCT role_id FROM sys_role_permission WHERE permission_id = #{permissionId}")
+    List<Long> selectRoleIdsByPermissionId(@Param("permissionId") Long permissionId);
+
     @Select("SELECT rm.menu_id FROM sys_role_menu rm "
             + "INNER JOIN sys_menu m ON m.id = rm.menu_id "
             + "WHERE rm.role_id = #{roleId} AND m.is_delete = 0 ORDER BY rm.menu_id")

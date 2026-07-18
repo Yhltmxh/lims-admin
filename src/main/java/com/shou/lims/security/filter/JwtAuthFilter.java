@@ -7,8 +7,8 @@ import com.shou.lims.security.service.SecurityUserDetails;
 import com.shou.lims.common.enums.StatusEnum;
 import com.shou.lims.organize.user.entity.User;
 import com.shou.lims.organize.user.mapper.UserMapper;
-import com.shou.lims.organize.permission.entity.Permission;
-import com.shou.lims.organize.permission.mapper.PermissionMapper;
+import com.shou.lims.security.service.EffectivePermissionService;
+import com.shou.lims.security.service.EffectivePermissionSnapshot;
 import com.shou.lims.common.exception.UnauthorizedException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -31,7 +31,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtTokenService jwtTokenService;
     private final AccessTokenBlacklistService accessTokenBlacklistService;
     private final UserMapper userMapper;
-    private final PermissionMapper permissionMapper;
+    private final EffectivePermissionService effectivePermissionService;
     private static final String BEARER_PREFIX = "Bearer ";
 
     @Override
@@ -58,14 +58,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 filterChain.doFilter(request, response);
                 return;
             }
+            Integer tokenAuthVersion = jwt.getClaim("authVersion").asInt();
+            if (tokenAuthVersion == null || !tokenAuthVersion.equals(user.getAuthVersion())) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             String username = user.getUsername();
-            List<SimpleGrantedAuthority> authorities = permissionMapper.selectByUserId(userId).stream()
-                    .map(Permission::getCode)
+            EffectivePermissionSnapshot snapshot = effectivePermissionService.resolve(userId);
+            List<SimpleGrantedAuthority> authorities = snapshot.getPermissions().stream()
                     .map(SimpleGrantedAuthority::new)
-                    .toList();
+                    .collect(java.util.stream.Collectors.toList());
+            snapshot.getRoles().forEach(code -> authorities.add(new SimpleGrantedAuthority(
+                    code.startsWith("ROLE_") ? code : "ROLE_" + code)));
 
             SecurityUserDetails userDetails = new SecurityUserDetails(
-                    userId, username, "", true, authorities);
+                    userId, username, "", true, authorities, user.getAuthVersion());
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, authorities);

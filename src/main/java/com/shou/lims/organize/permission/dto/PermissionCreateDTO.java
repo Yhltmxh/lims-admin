@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 @Data
@@ -16,6 +17,8 @@ public class PermissionCreateDTO {
 
     @NotBlank(message = "权限编码不能为空")
     @Size(max = 64, message = "权限编码不能超过64位")
+    @Pattern(regexp = "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$",
+            message = "权限编码格式必须为module:resource:action")
     private String code;
 
     @NotNull(message = "权限类型不能为空")

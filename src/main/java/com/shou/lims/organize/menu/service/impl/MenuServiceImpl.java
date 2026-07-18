@@ -17,6 +17,10 @@ import com.shou.lims.organize.menu.service.MenuService;
 import com.shou.lims.organize.menu.vo.MenuVO;
 import com.shou.lims.organize.menu.vo.MenuRouteVO;
 import com.shou.lims.organize.role.mapper.RoleMapper;
+import com.shou.lims.organize.permission.entity.Permission;
+import com.shou.lims.organize.permission.mapper.PermissionMapper;
+import com.shou.lims.security.service.EffectivePermissionService;
+import com.shou.lims.security.service.EffectivePermissionSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -37,6 +41,8 @@ public class MenuServiceImpl implements MenuService {
     private final MenuMapper menuMapper;
     private final MenuConverter menuConverter;
     private final RoleMapper roleMapper;
+    private final PermissionMapper permissionMapper;
+    private final EffectivePermissionService effectivePermissionService;
 
     @Override
     public PageVO<MenuVO> page(MenuQueryDTO query) {
@@ -63,6 +69,7 @@ public class MenuServiceImpl implements MenuService {
     @Transactional
     public Long create(MenuCreateDTO dto) {
         validateParent(null, dto.getParentId());
+        validateRequiredPermission(dto.getRequiredPermissionId());
         Long parentId = dto.getParentId() == null ? 0L : dto.getParentId();
         Menu existing = menuMapper.selectOne(new LambdaQueryWrapper<Menu>()
                 .eq(Menu::getParentId, parentId)
@@ -73,6 +80,7 @@ public class MenuServiceImpl implements MenuService {
         Menu menu = menuConverter.toEntity(dto);
         menu.setParentId(parentId);
         menu.setStatus(dto.getStatus() != null ? dto.getStatus() : StatusEnum.ENABLED.getValue());
+        menu.setRequiredPermissionId(dto.getRequiredPermissionId());
         menuMapper.insert(menu);
         return menu.getId();
     }
@@ -89,6 +97,9 @@ public class MenuServiceImpl implements MenuService {
         }
         if (dto.getParentId() != null) {
             validateParent(id, dto.getParentId());
+        }
+        if (dto.getRequiredPermissionId() != null) {
+            validateRequiredPermission(dto.getRequiredPermissionId());
         }
         if (StringUtils.isNotBlank(dto.getName()) || dto.getParentId() != null) {
             Long parentId = dto.getParentId() != null ? dto.getParentId() : menu.getParentId();
@@ -115,6 +126,7 @@ public class MenuServiceImpl implements MenuService {
         if (dto.getSortOrder() != null) menu.setSortOrder(dto.getSortOrder());
         if (dto.getHidden() != null) menu.setHidden(dto.getHidden());
         if (dto.getStatus() != null) menu.setStatus(dto.getStatus());
+        if (dto.getRequiredPermissionId() != null) menu.setRequiredPermissionId(dto.getRequiredPermissionId());
         if (menuMapper.updateById(menu) == 0) {
             throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
         }
@@ -158,20 +170,28 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public List<MenuRouteVO> getCurrentUserMenuTree(Long userId) {
-        List<Menu> assignedMenus = menuMapper.selectByUserId(userId);
-        if (assignedMenus.isEmpty()) {
-            return List.of();
-        }
-
+        EffectivePermissionSnapshot permissionSnapshot = effectivePermissionService.resolve(userId);
         List<Menu> enabledMenus = menuMapper.selectList(new LambdaQueryWrapper<Menu>()
                 .eq(Menu::getStatus, StatusEnum.ENABLED.getValue())
                 .orderByAsc(Menu::getSortOrder));
         Map<Long, Menu> menuMap = enabledMenus.stream()
                 .collect(Collectors.toMap(Menu::getId, Function.identity()));
+        Set<Long> requiredPermissionIds = enabledMenus.stream().map(Menu::getRequiredPermissionId)
+                .filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Permission> requiredPermissions = requiredPermissionIds.isEmpty() ? Map.of()
+                : permissionMapper.selectBatchIds(requiredPermissionIds).stream()
+                .collect(Collectors.toMap(Permission::getId, Function.identity()));
 
         Set<Long> visibleIds = new HashSet<>();
-        for (Menu assignedMenu : assignedMenus) {
-            Menu current = assignedMenu;
+        for (Menu menu : enabledMenus) {
+            if (menu.getRequiredPermissionId() == null) {
+                continue;
+            }
+            Permission required = requiredPermissions.get(menu.getRequiredPermissionId());
+            if (required == null || !permissionSnapshot.getPermissions().contains(required.getCode())) {
+                continue;
+            }
+            Menu current = menu;
             while (current != null && visibleIds.add(current.getId())) {
                 Long parentId = current.getParentId();
                 current = parentId == null || parentId == 0L ? null : menuMap.get(parentId);
@@ -182,6 +202,16 @@ public class MenuServiceImpl implements MenuService {
                 .filter(menu -> visibleIds.contains(menu.getId()))
                 .toList();
         return buildRouteTree(visibleMenus);
+    }
+
+    private void validateRequiredPermission(Long permissionId) {
+        if (permissionId == null) {
+            return;
+        }
+        Permission permission = permissionMapper.selectById(permissionId);
+        if (permission == null || !StatusEnum.ENABLED.getValue().equals(permission.getStatus())) {
+            throw new BusinessException(400, "菜单所需权限不存在或已禁用");
+        }
     }
 
     private MenuRouteVO toRouteVO(Menu menu) {

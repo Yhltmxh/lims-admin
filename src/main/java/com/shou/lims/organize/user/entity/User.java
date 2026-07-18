@@ -22,4 +22,5 @@ public class User extends BaseEntity {
     private String avatar;
     private Long deptId;
     private Integer status;
+    private Integer authVersion;
 }

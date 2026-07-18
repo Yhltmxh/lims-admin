@@ -2,11 +2,7 @@ package com.shou.lims.security.service.impl;
 
 import com.shou.lims.common.enums.StatusEnum;
 import com.shou.lims.common.exception.UnauthorizedException;
-import com.shou.lims.organize.permission.entity.Permission;
-import com.shou.lims.organize.permission.mapper.PermissionMapper;
 import com.shou.lims.common.util.SecurityUtils;
-import com.shou.lims.organize.role.entity.Role;
-import com.shou.lims.organize.role.mapper.RoleMapper;
 import com.shou.lims.organize.user.entity.User;
 import com.shou.lims.organize.user.mapper.UserMapper;
 import com.shou.lims.security.jwt.JwtTokenService;
@@ -14,6 +10,8 @@ import com.shou.lims.security.jwt.RefreshTokenService;
 import com.shou.lims.security.jwt.AccessTokenBlacklistService;
 import com.shou.lims.security.service.AuthService;
 import com.shou.lims.security.service.SecurityUserDetails;
+import com.shou.lims.security.service.EffectivePermissionService;
+import com.shou.lims.security.service.EffectivePermissionSnapshot;
 import com.shou.lims.security.vo.LoginVO;
 import com.shou.lims.security.vo.UserInfoVO;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +32,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final AccessTokenBlacklistService accessTokenBlacklistService;
     private final UserMapper userMapper;
-    private final RoleMapper roleMapper;
-    private final PermissionMapper permissionMapper;
+    private final EffectivePermissionService effectivePermissionService;
 
     @Override
     public LoginVO login(String username, String rawPassword) {
@@ -52,7 +49,8 @@ public class AuthServiceImpl implements AuthService {
                 .toList();
 
         String accessToken = jwtTokenService.generateAccessToken(
-                userDetails.getUserId(), userDetails.getUsername(), permissions);
+                userDetails.getUserId(), userDetails.getUsername(), permissions,
+                userDetails.getAuthVersion());
         String refreshToken = jwtTokenService.generateRefreshToken();
 
         refreshTokenService.store(userDetails.getUserId(), refreshToken);
@@ -69,14 +67,15 @@ public class AuthServiceImpl implements AuthService {
             refreshTokenService.revoke(userId);
             throw new UnauthorizedException();
         }
-        List<Permission> permissions = permissionMapper.selectByUserId(userId);
-        List<String> permissionCodes = permissions.stream()
-                .filter(p -> StatusEnum.ENABLED.getValue().equals(p.getStatus()))
-                .map(Permission::getCode)
-                .toList();
+        if (!user.getAuthVersion().equals(jwtTokenService.extractVerifiedAuthVersionForRefresh(accessToken))) {
+            refreshTokenService.revoke(userId);
+            throw new UnauthorizedException();
+        }
+        EffectivePermissionSnapshot snapshot = effectivePermissionService.resolve(userId);
+        List<String> permissionCodes = snapshot.getPermissions().stream().toList();
 
         String newAccessToken = jwtTokenService.generateAccessToken(
-                userId, user.getUsername(), permissionCodes);
+                userId, user.getUsername(), permissionCodes, user.getAuthVersion());
         String newRefreshToken = jwtTokenService.generateRefreshToken();
 
         if (!refreshTokenService.rotate(userId, refreshToken, newRefreshToken)) {
@@ -104,20 +103,15 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException();
         }
 
-        List<Role> roles = roleMapper.selectByUserId(userId);
+        EffectivePermissionSnapshot snapshot = effectivePermissionService.resolve(userId);
 
         UserInfoVO vo = new UserInfoVO();
         vo.setUserId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setRealName(user.getRealName());
         vo.setAvatar(user.getAvatar());
-        vo.setRoles(roles.stream().map(Role::getName).toList());
-        // Permissions come from SecurityContext
-        vo.setPermissions(SecurityContextHolder.getContext().getAuthentication()
-                .getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(a -> !a.startsWith("ROLE_"))
-                .toList());
+        vo.setRoles(snapshot.getRoles().stream().toList());
+        vo.setPermissions(snapshot.getPermissions().stream().toList());
         return vo;
     }
 }

@@ -23,6 +23,8 @@ import com.shou.lims.organize.role.entity.Role;
 import com.shou.lims.organize.role.mapper.RoleMapper;
 import com.shou.lims.security.jwt.RefreshTokenService;
 import com.shou.lims.common.util.SecurityUtils;
+import com.shou.lims.common.constant.GlobalConstants;
+import com.shou.lims.security.service.EffectivePermissionService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,6 +50,7 @@ public class UserServiceImpl implements UserService {
     private final UserConverter userConverter;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
+    private final EffectivePermissionService effectivePermissionService;
 
     @Override
     public PageVO<UserVO> page(UserQueryDTO query) {
@@ -128,7 +131,10 @@ public class UserServiceImpl implements UserService {
         }
 
         if (roleIds != null) {
+            protectLastSuperAdmin(id, roleIds, dto.getStatus());
             assignRoles(id, roleIds);
+        } else if (StatusEnum.DISABLED.getValue().equals(dto.getStatus())) {
+            protectLastSuperAdmin(id, userRoleMapper.selectRoleIdsByUserId(id), dto.getStatus());
         }
         if (StatusEnum.DISABLED.getValue().equals(dto.getStatus())) {
             refreshTokenService.revoke(id);
@@ -144,14 +150,39 @@ public class UserServiceImpl implements UserService {
         if (ids.contains(SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(400, "不能删除当前登录用户");
         }
+        long deletingSuperAdmins = ids.stream().filter(id -> roleMapper.selectByUserId(id).stream()
+                .anyMatch(role -> GlobalConstants.SUPER_ADMIN_ROLE.equals(role.getName()))).count();
+        long enabledSuperAdmins = userRoleMapper.countEnabledUsersByRoleNameExcluding(
+                GlobalConstants.SUPER_ADMIN_ROLE, null);
+        if (deletingSuperAdmins > 0 && enabledSuperAdmins <= deletingSuperAdmins) {
+            throw new BusinessException(400, "系统必须至少保留一个启用的超级管理员");
+        }
         userRoleMapper.deleteByUserIds(ids);
         userMapper.deleteBatchIds(ids);
         ids.forEach(refreshTokenService::revoke);
+        effectivePermissionService.invalidateAll(ids);
     }
 
     private void assignRoles(Long userId, List<Long> roleIds) {
         userRoleMapper.deleteByUserId(userId);
         roleIds.forEach(roleId -> userRoleMapper.insert(userId, roleId));
+        effectivePermissionService.invalidate(userId);
+    }
+
+    private void protectLastSuperAdmin(Long userId, List<Long> newRoleIds, Integer newStatus) {
+        boolean currentlySuper = roleMapper.selectByUserId(userId).stream()
+                .anyMatch(role -> GlobalConstants.SUPER_ADMIN_ROLE.equals(role.getName()));
+        if (!currentlySuper) {
+            return;
+        }
+        boolean remainsSuper = roleMapper.selectBatchIds(newRoleIds).stream()
+                .anyMatch(role -> GlobalConstants.SUPER_ADMIN_ROLE.equals(role.getName()));
+        boolean remainsEnabled = !StatusEnum.DISABLED.getValue().equals(newStatus);
+        if ((!remainsSuper || !remainsEnabled)
+                && userRoleMapper.countEnabledUsersByRoleNameExcluding(
+                GlobalConstants.SUPER_ADMIN_ROLE, userId) == 0) {
+            throw new BusinessException(400, "系统必须至少保留一个启用的超级管理员");
+        }
     }
 
     private List<Long> validateRoles(Collection<Long> roleIds, boolean required) {

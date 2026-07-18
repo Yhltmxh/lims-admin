@@ -21,4 +21,5 @@ public class Menu extends BaseEntity {
     private Integer sortOrder;
     private Integer hidden;
     private Integer status;
+    private Long requiredPermissionId;
 }

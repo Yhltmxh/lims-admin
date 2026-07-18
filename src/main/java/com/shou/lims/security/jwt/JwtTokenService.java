@@ -27,6 +27,10 @@ public class JwtTokenService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     public String generateAccessToken(Long userId, String username, List<String> permissions) {
+        return generateAccessToken(userId, username, permissions, 0);
+    }
+
+    public String generateAccessToken(Long userId, String username, List<String> permissions, Integer authVersion) {
         Algorithm algorithm = Algorithm.HMAC256(accessTokenProperties.secret());
         Instant now = Instant.now();
         return JWT.create()
@@ -36,6 +40,7 @@ public class JwtTokenService {
                 .withJWTId(UUID.randomUUID().toString())
                 .withClaim("username", username)
                 .withClaim("permissions", String.join(",", permissions != null ? permissions : List.of()))
+                .withClaim("authVersion", authVersion == null ? 0 : authVersion)
                 .withIssuedAt(Date.from(now))
                 .withExpiresAt(Date.from(now.plusSeconds(accessTokenProperties.expiration() * 60L)))
                 .sign(algorithm);
@@ -55,17 +60,28 @@ public class JwtTokenService {
     }
 
     public Long extractVerifiedUserIdForRefresh(String token) {
+        return Long.valueOf(verifyForRefresh(token).getSubject());
+    }
+
+    public Integer extractVerifiedAuthVersionForRefresh(String token) {
+        Integer version = verifyForRefresh(token).getClaim("authVersion").asInt();
+        if (version == null) {
+            throw new UnauthorizedException();
+        }
+        return version;
+    }
+
+    private DecodedJWT verifyForRefresh(String token) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(accessTokenProperties.secret());
             long refreshWindowSeconds = refreshTokenProperties.expiration() * 24L * 60L * 60L;
-            DecodedJWT jwt = JWT.require(algorithm)
+            return JWT.require(algorithm)
                     .withIssuer(ISSUER)
                     .withAudience(AUDIENCE)
                     .acceptExpiresAt(refreshWindowSeconds)
                     .build()
                     .verify(token);
-            return Long.valueOf(jwt.getSubject());
-        } catch (JWTVerificationException | NumberFormatException e) {
+        } catch (JWTVerificationException e) {
             throw new UnauthorizedException();
         }
     }

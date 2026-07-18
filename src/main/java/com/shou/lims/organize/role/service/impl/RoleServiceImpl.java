@@ -20,6 +20,8 @@ import com.shou.lims.organize.permission.mapper.PermissionMapper;
 import com.shou.lims.organize.menu.entity.Menu;
 import com.shou.lims.organize.menu.mapper.MenuMapper;
 import com.shou.lims.organize.user.mapper.UserRoleMapper;
+import com.shou.lims.common.constant.GlobalConstants;
+import com.shou.lims.security.service.EffectivePermissionService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,7 @@ public class RoleServiceImpl implements RoleService {
     private final PermissionMapper permissionMapper;
     private final MenuMapper menuMapper;
     private final UserRoleMapper userRoleMapper;
+    private final EffectivePermissionService effectivePermissionService;
 
     @Override
     public PageVO<RoleVO> page(RoleQueryDTO query) {
@@ -95,12 +98,17 @@ public class RoleServiceImpl implements RoleService {
         if (dto.getVersion() != null && !dto.getVersion().equals(role.getVersion())) {
             throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
         }
+        if (GlobalConstants.SUPER_ADMIN_ROLE.equals(role.getName())
+                && StatusEnum.DISABLED.getValue().equals(dto.getStatus())) {
+            throw new BusinessException(400, "超级管理员角色不能禁用");
+        }
         if (StringUtils.isNotBlank(dto.getLabel())) role.setLabel(dto.getLabel());
         if (dto.getDescription() != null) role.setDescription(dto.getDescription());
         if (dto.getStatus() != null) role.setStatus(dto.getStatus());
         if (roleMapper.updateById(role) == 0) {
             throw new BusinessException(409, "数据已被其他用户修改，请刷新后重试");
         }
+        effectivePermissionService.invalidateAll(userRoleMapper.selectUserIdsByRoleIds(List.of(id)));
 
         if (dto.getPermissionIds() != null) {
             assignPermissions(id, validatePermissionIds(dto.getPermissionIds()));
@@ -116,18 +124,25 @@ public class RoleServiceImpl implements RoleService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
+        if (roleMapper.selectBatchIds(ids).stream()
+                .anyMatch(role -> GlobalConstants.SUPER_ADMIN_ROLE.equals(role.getName()))) {
+            throw new BusinessException(400, "超级管理员角色不能删除");
+        }
+        List<Long> affectedUserIds = userRoleMapper.selectUserIdsByRoleIds(ids);
         userRoleMapper.deleteByRoleIds(ids);
         ids.forEach(id -> {
             roleMapper.deleteRolePermissions(id);
             roleMapper.deleteRoleMenus(id);
         });
         roleMapper.deleteBatchIds(ids);
+        effectivePermissionService.invalidateAll(affectedUserIds);
     }
 
     @Override
     @Transactional
     public void assignPermissions(Long roleId, List<Long> permissionIds) {
         requireRole(roleId);
+        List<Long> affectedUserIds = userRoleMapper.selectUserIdsByRoleIds(List.of(roleId));
         List<Long> validIds = validatePermissionIds(permissionIds);
         roleMapper.deleteRolePermissions(roleId);
         if (!validIds.isEmpty()) {
@@ -135,6 +150,7 @@ public class RoleServiceImpl implements RoleService {
                 roleMapper.insertRolePermission(roleId, permissionId);
             }
         }
+        effectivePermissionService.invalidateAll(affectedUserIds);
     }
 
     @Override

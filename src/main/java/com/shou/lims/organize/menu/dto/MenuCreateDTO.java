@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -30,4 +31,6 @@ public class MenuCreateDTO {
     @Min(value = 0, message = "状态值不正确")
     @Max(value = 1, message = "状态值不正确")
     private Integer status;
+    @Positive(message = "所需权限ID必须为正数")
+    private Long requiredPermissionId;
 }
