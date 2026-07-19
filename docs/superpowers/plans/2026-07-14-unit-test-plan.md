@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 按照测试设计文档为 LIMS 系统各层编写单元测试，覆盖通用层、Security、Service、Controller、AOP。
+**Goal:** 按照测试设计文档为 MCMIS 系统各层编写单元测试，覆盖通用层、Security、Service、Controller、AOP。
 
 **Architecture:** 测试基类 `BaseSpringBootTest` 提供 `@SpringBootTest` + `@Transactional` + `MockMvc`，`BaseAuthenticatedTest` 在此基础上自动以 admin 登录。Service 和 Controller 测试均继承基类，走真实 DB+Redis，`@Transactional` 自动回滚。通用层（DTO/Validator）纯 JUnit 无 Spring 依赖。
 
@@ -19,8 +19,8 @@
 ### Task 1: 测试基类
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/BaseSpringBootTest.java`
-- Create: `src/test/java/com/shou/lims/BaseAuthenticatedTest.java`
+- Create: `src/test/java/com/shou/mcmis/BaseSpringBootTest.java`
+- Create: `src/test/java/com/shou/mcmis/BaseAuthenticatedTest.java`
 
 **Interfaces:**
 - Produces: `BaseSpringBootTest` — `@Autowired MockMvc mockMvc`, `@Autowired PasswordEncoder passwordEncoder`
@@ -29,7 +29,7 @@
 - [ ] **Step 1: 创建 BaseSpringBootTest**
 
 ```java
-package com.shou.lims;
+package com.shou.mcmis;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -53,7 +53,7 @@ public abstract class BaseSpringBootTest {
 - [ ] **Step 2: 创建 BaseAuthenticatedTest**
 
 ```java
-package com.shou.lims;
+package com.shou.mcmis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
@@ -91,7 +91,7 @@ Expected: 7 tests PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/BaseSpringBootTest.java src/test/java/com/shou/lims/BaseAuthenticatedTest.java
+git add src/test/java/com/shou/mcmis/BaseSpringBootTest.java src/test/java/com/shou/mcmis/BaseAuthenticatedTest.java
 git commit -m "test: add BaseSpringBootTest and BaseAuthenticatedTest base classes"
 ```
 
@@ -100,15 +100,15 @@ git commit -m "test: add BaseSpringBootTest and BaseAuthenticatedTest base class
 ### Task 2: 通用层单元测试（PageVOTest + PhoneValidatorTest + GlobalExceptionHandlerTest 扩充）
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/common/response/PageVOTest.java`
-- Create: `src/test/java/com/shou/lims/common/validation/PhoneValidatorTest.java`
-- Modify: `src/test/java/com/shou/lims/common/exception/GlobalExceptionHandlerTest.java`
-- Modify: `src/test/java/com/shou/lims/common/exception/TestController.java`
+- Create: `src/test/java/com/shou/mcmis/common/response/PageVOTest.java`
+- Create: `src/test/java/com/shou/mcmis/common/validation/PhoneValidatorTest.java`
+- Modify: `src/test/java/com/shou/mcmis/common/exception/GlobalExceptionHandlerTest.java`
+- Modify: `src/test/java/com/shou/mcmis/common/exception/TestController.java`
 
 - [ ] **Step 1: 创建 PageVOTest**
 
 ```java
-package com.shou.lims.common.response;
+package com.shou.mcmis.common.response;
 
 import com.github.pagehelper.PageInfo;
 import org.junit.jupiter.api.Test;
@@ -156,7 +156,7 @@ Expected: 2 tests PASS
 - [ ] **Step 3: 创建 PhoneValidatorTest**
 
 ```java
-package com.shou.lims.common.validation;
+package com.shou.mcmis.common.validation;
 
 import jakarta.validation.ConstraintValidatorContext;
 import org.junit.jupiter.api.Test;
@@ -201,7 +201,7 @@ Expected: 5 tests PASS
 
 - [ ] **Step 5: 扩充 TestController**
 
-Edit `src/test/java/com/shou/lims/common/exception/TestController.java`，追加以下端点方法到现有类中：
+Edit `src/test/java/com/shou/mcmis/common/exception/TestController.java`，追加以下端点方法到现有类中：
 
 ```java
 @GetMapping("/business-409")
@@ -216,7 +216,7 @@ public String forbidden() { throw new ForbiddenException(); }
 
 - [ ] **Step 6: 扩充 GlobalExceptionHandlerTest**
 
-Edit `src/test/java/com/shou/lims/common/exception/GlobalExceptionHandlerTest.java`，追加测试方法：
+Edit `src/test/java/com/shou/mcmis/common/exception/GlobalExceptionHandlerTest.java`，追加测试方法：
 
 ```java
 @Test
@@ -250,7 +250,7 @@ Expected: all PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/common/
+git add src/test/java/com/shou/mcmis/common/
 git commit -m "test: add PageVOTest, PhoneValidatorTest, expand GlobalExceptionHandlerTest"
 ```
 
@@ -259,17 +259,17 @@ git commit -m "test: add PageVOTest, PhoneValidatorTest, expand GlobalExceptionH
 ### Task 3: JwtTokenServiceTest
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/security/jwt/JwtTokenServiceTest.java`
+- Create: `src/test/java/com/shou/mcmis/security/jwt/JwtTokenServiceTest.java`
 
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.shou.lims.security.jwt;
+package com.shou.mcmis.security.jwt;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.common.exception.UnauthorizedException;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.common.exception.UnauthorizedException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
@@ -335,7 +335,7 @@ Expected: 6 tests PASS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/security/jwt/JwtTokenServiceTest.java
+git add src/test/java/com/shou/mcmis/security/jwt/JwtTokenServiceTest.java
 git commit -m "test: add JwtTokenServiceTest"
 ```
 
@@ -344,16 +344,16 @@ git commit -m "test: add JwtTokenServiceTest"
 ### Task 4: AuthServiceTest
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/security/service/AuthServiceTest.java`
+- Create: `src/test/java/com/shou/mcmis/security/service/AuthServiceTest.java`
 
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.shou.lims.security.service;
+package com.shou.mcmis.security.service;
 
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.common.exception.UnauthorizedException;
-import com.shou.lims.security.vo.LoginVO;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.common.exception.UnauthorizedException;
+import com.shou.mcmis.security.vo.LoginVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -437,7 +437,7 @@ Expected: 6 tests PASS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/security/service/AuthServiceTest.java
+git add src/test/java/com/shou/mcmis/security/service/AuthServiceTest.java
 git commit -m "test: add AuthServiceTest"
 ```
 
@@ -446,16 +446,16 @@ git commit -m "test: add AuthServiceTest"
 ### Task 5: AuthControllerTest
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/security/controller/AuthControllerTest.java`
+- Create: `src/test/java/com/shou/mcmis/security/controller/AuthControllerTest.java`
 
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.shou.lims.security.controller;
+package com.shou.mcmis.security.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import com.shou.lims.BaseSpringBootTest;
+import com.shou.mcmis.BaseSpringBootTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -568,7 +568,7 @@ Expected: 7 tests PASS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/security/controller/AuthControllerTest.java
+git add src/test/java/com/shou/mcmis/security/controller/AuthControllerTest.java
 git commit -m "test: add AuthControllerTest"
 ```
 
@@ -577,16 +577,16 @@ git commit -m "test: add AuthControllerTest"
 ### Task 6: JwtAuthFilterTest
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/security/filter/JwtAuthFilterTest.java`
+- Create: `src/test/java/com/shou/mcmis/security/filter/JwtAuthFilterTest.java`
 
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.shou.lims.security.filter;
+package com.shou.mcmis.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import com.shou.lims.BaseSpringBootTest;
+import com.shou.mcmis.BaseSpringBootTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -672,7 +672,7 @@ Expected: 5 tests PASS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/security/filter/JwtAuthFilterTest.java
+git add src/test/java/com/shou/mcmis/security/filter/JwtAuthFilterTest.java
 git commit -m "test: add JwtAuthFilterTest"
 ```
 
@@ -681,22 +681,22 @@ git commit -m "test: add JwtAuthFilterTest"
 ### Task 7: UserServiceImplTest
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/organize/user/service/impl/UserServiceImplTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/user/service/impl/UserServiceImplTest.java`
 
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.shou.lims.organize.user.service.impl;
+package com.shou.mcmis.organize.user.service.impl;
 
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.common.exception.BusinessException;
-import com.shou.lims.common.exception.NotFoundException;
-import com.shou.lims.common.response.PageVO;
-import com.shou.lims.organize.user.dto.UserCreateDTO;
-import com.shou.lims.organize.user.dto.UserQueryDTO;
-import com.shou.lims.organize.user.dto.UserUpdateDTO;
-import com.shou.lims.organize.user.service.UserService;
-import com.shou.lims.organize.user.vo.UserVO;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.common.exception.BusinessException;
+import com.shou.mcmis.common.exception.NotFoundException;
+import com.shou.mcmis.common.response.PageVO;
+import com.shou.mcmis.organize.user.dto.UserCreateDTO;
+import com.shou.mcmis.organize.user.dto.UserQueryDTO;
+import com.shou.mcmis.organize.user.dto.UserUpdateDTO;
+import com.shou.mcmis.organize.user.service.UserService;
+import com.shou.mcmis.organize.user.vo.UserVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -811,7 +811,7 @@ Expected: 10 tests PASS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/organize/user/service/impl/UserServiceImplTest.java
+git add src/test/java/com/shou/mcmis/organize/user/service/impl/UserServiceImplTest.java
 git commit -m "test: add UserServiceImplTest"
 ```
 
@@ -820,28 +820,28 @@ git commit -m "test: add UserServiceImplTest"
 ### Task 8: RoleServiceImplTest + DeptServiceImplTest + MenuServiceImplTest + PermissionServiceImplTest
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/organize/role/service/impl/RoleServiceImplTest.java`
-- Create: `src/test/java/com/shou/lims/organize/dept/service/impl/DeptServiceImplTest.java`
-- Create: `src/test/java/com/shou/lims/organize/menu/service/impl/MenuServiceImplTest.java`
-- Create: `src/test/java/com/shou/lims/organize/permission/service/impl/PermissionServiceImplTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/role/service/impl/RoleServiceImplTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/dept/service/impl/DeptServiceImplTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/menu/service/impl/MenuServiceImplTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/permission/service/impl/PermissionServiceImplTest.java`
 
 - [ ] **Step 1: 创建 RoleServiceImplTest**
 
 ```java
-package com.shou.lims.organize.role.service.impl;
+package com.shou.mcmis.organize.role.service.impl;
 
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.common.enums.StatusEnum;
-import com.shou.lims.common.exception.BusinessException;
-import com.shou.lims.common.exception.NotFoundException;
-import com.shou.lims.common.response.PageVO;
-import com.shou.lims.organize.role.dto.RoleCreateDTO;
-import com.shou.lims.organize.role.dto.RoleQueryDTO;
-import com.shou.lims.organize.role.dto.RoleUpdateDTO;
-import com.shou.lims.organize.role.entity.Role;
-import com.shou.lims.organize.role.mapper.RoleMapper;
-import com.shou.lims.organize.role.service.RoleService;
-import com.shou.lims.organize.role.vo.RoleVO;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.common.enums.StatusEnum;
+import com.shou.mcmis.common.exception.BusinessException;
+import com.shou.mcmis.common.exception.NotFoundException;
+import com.shou.mcmis.common.response.PageVO;
+import com.shou.mcmis.organize.role.dto.RoleCreateDTO;
+import com.shou.mcmis.organize.role.dto.RoleQueryDTO;
+import com.shou.mcmis.organize.role.dto.RoleUpdateDTO;
+import com.shou.mcmis.organize.role.entity.Role;
+import com.shou.mcmis.organize.role.mapper.RoleMapper;
+import com.shou.mcmis.organize.role.service.RoleService;
+import com.shou.mcmis.organize.role.vo.RoleVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -964,14 +964,14 @@ List<Long> selectRoleMenuIds(@Param("roleId") Long roleId);
 - [ ] **Step 3: 创建 DeptServiceImplTest**
 
 ```java
-package com.shou.lims.organize.dept.service.impl;
+package com.shou.mcmis.organize.dept.service.impl;
 
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.common.exception.BusinessException;
-import com.shou.lims.common.exception.NotFoundException;
-import com.shou.lims.organize.dept.dto.DeptCreateDTO;
-import com.shou.lims.organize.dept.service.DeptService;
-import com.shou.lims.organize.dept.vo.DeptVO;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.common.exception.BusinessException;
+import com.shou.mcmis.common.exception.NotFoundException;
+import com.shou.mcmis.organize.dept.dto.DeptCreateDTO;
+import com.shou.mcmis.organize.dept.service.DeptService;
+import com.shou.mcmis.organize.dept.vo.DeptVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -1040,11 +1040,11 @@ class DeptServiceImplTest extends BaseSpringBootTest {
 - [ ] **Step 4: 创建 MenuServiceImplTest**
 
 ```java
-package com.shou.lims.organize.menu.service.impl;
+package com.shou.mcmis.organize.menu.service.impl;
 
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.organize.menu.service.MenuService;
-import com.shou.lims.organize.menu.vo.MenuVO;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.organize.menu.service.MenuService;
+import com.shou.mcmis.organize.menu.vo.MenuVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -1070,13 +1070,13 @@ class MenuServiceImplTest extends BaseSpringBootTest {
 - [ ] **Step 5: 创建 PermissionServiceImplTest**
 
 ```java
-package com.shou.lims.organize.permission.service.impl;
+package com.shou.mcmis.organize.permission.service.impl;
 
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.common.response.PageVO;
-import com.shou.lims.organize.permission.dto.PermissionQueryDTO;
-import com.shou.lims.organize.permission.service.PermissionService;
-import com.shou.lims.organize.permission.vo.PermissionVO;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.common.response.PageVO;
+import com.shou.mcmis.organize.permission.dto.PermissionQueryDTO;
+import com.shou.mcmis.organize.permission.service.PermissionService;
+import com.shou.mcmis.organize.permission.vo.PermissionVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -1121,10 +1121,10 @@ Expected: all PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/organize/role/service/impl/RoleServiceImplTest.java
-git add src/test/java/com/shou/lims/organize/dept/service/impl/DeptServiceImplTest.java
-git add src/test/java/com/shou/lims/organize/menu/service/impl/MenuServiceImplTest.java
-git add src/test/java/com/shou/lims/organize/permission/service/impl/PermissionServiceImplTest.java
+git add src/test/java/com/shou/mcmis/organize/role/service/impl/RoleServiceImplTest.java
+git add src/test/java/com/shou/mcmis/organize/dept/service/impl/DeptServiceImplTest.java
+git add src/test/java/com/shou/mcmis/organize/menu/service/impl/MenuServiceImplTest.java
+git add src/test/java/com/shou/mcmis/organize/permission/service/impl/PermissionServiceImplTest.java
 git commit -m "test: add RoleServiceImplTest, DeptServiceImplTest, MenuServiceImplTest, PermissionServiceImplTest"
 ```
 
@@ -1133,18 +1133,18 @@ git commit -m "test: add RoleServiceImplTest, DeptServiceImplTest, MenuServiceIm
 ### Task 9: LogServiceImplTest
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/organize/log/service/impl/LogServiceImplTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/log/service/impl/LogServiceImplTest.java`
 
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.shou.lims.organize.log.service.impl;
+package com.shou.mcmis.organize.log.service.impl;
 
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.common.response.CursorPageVO;
-import com.shou.lims.organize.log.dto.LogQueryDTO;
-import com.shou.lims.organize.log.service.LogService;
-import com.shou.lims.organize.log.vo.LogVO;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.common.response.CursorPageVO;
+import com.shou.mcmis.organize.log.dto.LogQueryDTO;
+import com.shou.mcmis.organize.log.service.LogService;
+import com.shou.mcmis.organize.log.vo.LogVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -1202,7 +1202,7 @@ Expected: 3 tests PASS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/organize/log/service/impl/LogServiceImplTest.java
+git add src/test/java/com/shou/mcmis/organize/log/service/impl/LogServiceImplTest.java
 git commit -m "test: add LogServiceImplTest"
 ```
 
@@ -1211,21 +1211,21 @@ git commit -m "test: add LogServiceImplTest"
 ### Task 10: Controller 层测试（6个）
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/organize/user/controller/UserControllerTest.java`
-- Create: `src/test/java/com/shou/lims/organize/role/controller/RoleControllerTest.java`
-- Create: `src/test/java/com/shou/lims/organize/dept/controller/DeptControllerTest.java`
-- Create: `src/test/java/com/shou/lims/organize/menu/controller/MenuControllerTest.java`
-- Create: `src/test/java/com/shou/lims/organize/permission/controller/PermissionControllerTest.java`
-- Create: `src/test/java/com/shou/lims/organize/log/controller/LogControllerTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/user/controller/UserControllerTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/role/controller/RoleControllerTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/dept/controller/DeptControllerTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/menu/controller/MenuControllerTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/permission/controller/PermissionControllerTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/log/controller/LogControllerTest.java`
 
 所有 Controller 测试继承 `BaseAuthenticatedTest`，使用 `adminToken` 自动认证。
 
 - [ ] **Step 1: 创建 UserControllerTest**
 
 ```java
-package com.shou.lims.organize.user.controller;
+package com.shou.mcmis.organize.user.controller;
 
-import com.shou.lims.BaseAuthenticatedTest;
+import com.shou.mcmis.BaseAuthenticatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -1325,9 +1325,9 @@ class UserControllerTest extends BaseAuthenticatedTest {
 - [ ] **Step 2: 创建 RoleControllerTest**
 
 ```java
-package com.shou.lims.organize.role.controller;
+package com.shou.mcmis.organize.role.controller;
 
-import com.shou.lims.BaseAuthenticatedTest;
+import com.shou.mcmis.BaseAuthenticatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -1380,9 +1380,9 @@ class RoleControllerTest extends BaseAuthenticatedTest {
 - [ ] **Step 3: 创建 DeptControllerTest**
 
 ```java
-package com.shou.lims.organize.dept.controller;
+package com.shou.mcmis.organize.dept.controller;
 
-import com.shou.lims.BaseAuthenticatedTest;
+import com.shou.mcmis.BaseAuthenticatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -1426,9 +1426,9 @@ class DeptControllerTest extends BaseAuthenticatedTest {
 - [ ] **Step 4: 创建 MenuControllerTest**
 
 ```java
-package com.shou.lims.organize.menu.controller;
+package com.shou.mcmis.organize.menu.controller;
 
-import com.shou.lims.BaseAuthenticatedTest;
+import com.shou.mcmis.BaseAuthenticatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -1452,9 +1452,9 @@ class MenuControllerTest extends BaseAuthenticatedTest {
 - [ ] **Step 5: 创建 PermissionControllerTest**
 
 ```java
-package com.shou.lims.organize.permission.controller;
+package com.shou.mcmis.organize.permission.controller;
 
-import com.shou.lims.BaseAuthenticatedTest;
+import com.shou.mcmis.BaseAuthenticatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -1477,9 +1477,9 @@ class PermissionControllerTest extends BaseAuthenticatedTest {
 - [ ] **Step 6: 创建 LogControllerTest**
 
 ```java
-package com.shou.lims.organize.log.controller;
+package com.shou.mcmis.organize.log.controller;
 
-import com.shou.lims.BaseAuthenticatedTest;
+import com.shou.mcmis.BaseAuthenticatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -1508,12 +1508,12 @@ Expected: all PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/organize/user/controller/UserControllerTest.java
-git add src/test/java/com/shou/lims/organize/role/controller/RoleControllerTest.java
-git add src/test/java/com/shou/lims/organize/dept/controller/DeptControllerTest.java
-git add src/test/java/com/shou/lims/organize/menu/controller/MenuControllerTest.java
-git add src/test/java/com/shou/lims/organize/permission/controller/PermissionControllerTest.java
-git add src/test/java/com/shou/lims/organize/log/controller/LogControllerTest.java
+git add src/test/java/com/shou/mcmis/organize/user/controller/UserControllerTest.java
+git add src/test/java/com/shou/mcmis/organize/role/controller/RoleControllerTest.java
+git add src/test/java/com/shou/mcmis/organize/dept/controller/DeptControllerTest.java
+git add src/test/java/com/shou/mcmis/organize/menu/controller/MenuControllerTest.java
+git add src/test/java/com/shou/mcmis/organize/permission/controller/PermissionControllerTest.java
+git add src/test/java/com/shou/mcmis/organize/log/controller/LogControllerTest.java
 git commit -m "test: add all Controller tests (User, Role, Dept, Menu, Permission, Log)"
 ```
 
@@ -1522,16 +1522,16 @@ git commit -m "test: add all Controller tests (User, Role, Dept, Menu, Permissio
 ### Task 11: LogAspectTest
 
 **Files:**
-- Create: `src/test/java/com/shou/lims/organize/log/aop/LogAspectTest.java`
+- Create: `src/test/java/com/shou/mcmis/organize/log/aop/LogAspectTest.java`
 
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.shou.lims.organize.log.aop;
+package com.shou.mcmis.organize.log.aop;
 
-import com.shou.lims.BaseSpringBootTest;
-import com.shou.lims.organize.log.entity.Log;
-import com.shou.lims.organize.log.mapper.LogMapper;
+import com.shou.mcmis.BaseSpringBootTest;
+import com.shou.mcmis.organize.log.entity.Log;
+import com.shou.mcmis.organize.log.mapper.LogMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -1571,7 +1571,7 @@ Expected: 全绿通过
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/test/java/com/shou/lims/organize/log/aop/LogAspectTest.java
+git add src/test/java/com/shou/mcmis/organize/log/aop/LogAspectTest.java
 git commit -m "test: add LogAspectTest"
 ```
 

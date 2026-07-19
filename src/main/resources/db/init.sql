@@ -1,7 +1,7 @@
 -- ============================================
 
 CREATE EXTENSION IF NOT EXISTS btree_gist;
--- LIMS 基础设施数据库初始化脚本
+-- MCMIS 基础设施数据库初始化脚本
 -- IvorySQL (PostgreSQL compatible)
 -- ============================================
 --

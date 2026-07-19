@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.shou</groupId>
-    <artifactId>admin</artifactId>
+    <artifactId>mcmis-admin</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>admin</name>
-    <description>admin</description>
+    <name>mcmis-admin</name>
+    <description>Marine Center Monitoring Information System backend</description>
     <url/>
     <licenses>
         <license/>

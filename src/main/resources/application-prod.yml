@@ -10,5 +10,5 @@ app:
 
 logging:
   level:
-    com.shou.lims: info
+    com.shou.mcmis: info
     org.springframework.security: info

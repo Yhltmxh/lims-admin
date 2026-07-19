@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LIMS (实验室信息管理系统) — a Spring Boot 3.5.16 **monolith** for environmental testing lab management. Front-end separated; this repo is the backend only. Java 17, IvorySQL 5.4 (PostgreSQL-compatible), Redis 7.x, MyBatis-Plus 3.5.12.
+MCMIS (Marine Center Monitoring Information System) — a Spring Boot 3.5.16 **monolith** for marine center monitoring management. Front-end separated; this repo is the backend only. Java 17, IvorySQL 5.4 (PostgreSQL-compatible), Redis 7.x, MyBatis-Plus 3.5.12.
 
 ## Build & Run
 
@@ -32,7 +32,7 @@ Dev Redis: `127.0.0.1:6380`, password `123456`.
 
 ## Architecture
 
-**Package-by-feature under `com.shou.lims`:**
+**Package-by-feature under `com.shou.mcmis`:**
 
 | Package | Purpose |
 |---------|---------|
@@ -85,6 +85,6 @@ Technical decisions are documented in `docs/` (specs in `docs/superpowers/specs/
 - `src/main/resources/application.yml` — shared config (DB, Redis, Jackson, MyBatis-Plus, JWT)
 - `src/main/resources/application-dev.yml` — dev profile overrides
 - `src/main/resources/db/init.sql` — full DDL + seed data (4 departments, 4 roles, 4 users)
-- `src/main/java/com/shou/lims/security/config/SecurityConfig.java` — security filter chain, public endpoints
-- `src/main/java/com/shou/lims/common/exception/GlobalExceptionHandler.java` — unified exception → Result mapping
-- `src/main/java/com/shou/lims/common/config/MyMetaObjectHandler.java` — auto-fills BaseEntity audit fields
+- `src/main/java/com/shou/mcmis/security/config/SecurityConfig.java` — security filter chain, public endpoints
+- `src/main/java/com/shou/mcmis/common/exception/GlobalExceptionHandler.java` — unified exception → Result mapping
+- `src/main/java/com/shou/mcmis/common/config/MyMetaObjectHandler.java` — auto-fills BaseEntity audit fields

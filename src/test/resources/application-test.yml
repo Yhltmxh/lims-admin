@@ -20,5 +20,5 @@ app:
 
 logging:
   level:
-    com.shou.lims: warn
+    com.shou.mcmis: warn
     org.springframework.security: warn
