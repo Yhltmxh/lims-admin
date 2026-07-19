@@ -272,6 +272,10 @@ ON CONFLICT DO NOTHING;
 
 -- 菜单（运行时仅使用 path/name/icon，component 为前端静态路由注册键）
 INSERT INTO sys_menu (parent_id, name, path, component, icon, sort_order, create_by, update_by)
+VALUES (0, '欢迎', '/welcome', 'Welcome', 'HomeOutlined', 0, 0, 0)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_menu (parent_id, name, path, component, icon, sort_order, create_by, update_by)
 VALUES (0, '系统管理', '/system', 'Layout', 'SettingOutlined', 10, 0, 0)
 ON CONFLICT DO NOTHING;
 

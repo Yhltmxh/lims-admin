@@ -180,6 +180,10 @@ public class MenuServiceImpl implements MenuService {
                 .orderByAsc(Menu::getSortOrder));
         Map<Long, Menu> menuMap = enabledMenus.stream()
                 .collect(Collectors.toMap(Menu::getId, Function.identity()));
+        Set<Long> parentMenuIds = enabledMenus.stream()
+                .map(Menu::getParentId)
+                .filter(parentId -> parentId != null && parentId != 0L)
+                .collect(Collectors.toSet());
         Set<Long> requiredPermissionIds = enabledMenus.stream().map(Menu::getRequiredPermissionId)
                 .filter(java.util.Objects::nonNull).collect(Collectors.toSet());
         Map<Long, Permission> requiredPermissions = requiredPermissionIds.isEmpty() ? Map.of()
@@ -189,11 +193,14 @@ public class MenuServiceImpl implements MenuService {
         Set<Long> visibleIds = new HashSet<>();
         for (Menu menu : enabledMenus) {
             if (menu.getRequiredPermissionId() == null) {
-                continue;
-            }
-            Permission required = requiredPermissions.get(menu.getRequiredPermissionId());
-            if (required == null || !permissionSnapshot.getPermissions().contains(required.getCode())) {
-                continue;
+                if (parentMenuIds.contains(menu.getId())) {
+                    continue;
+                }
+            } else {
+                Permission required = requiredPermissions.get(menu.getRequiredPermissionId());
+                if (required == null || !permissionSnapshot.getPermissions().contains(required.getCode())) {
+                    continue;
+                }
             }
             Menu current = menu;
             while (current != null && visibleIds.add(current.getId())) {
