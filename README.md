@@ -29,19 +29,20 @@
 
 ### 初始化数据库
 
-在 IvorySQL 中创建数据库 `lims`，然后执行初始化脚本：
+在 IvorySQL 中创建数据库 `mcmis`，然后执行初始化脚本：
 
 ```bash
-psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/init.sql
+psql -h 127.0.0.1 -U ivorysql -d mcmis -f src/main/resources/db/init.sql
 ```
 
 如果数据库已经执行过旧版初始化脚本，请额外执行升级补丁：
 
 ```bash
-psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-16-security-hardening.sql
-psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-17-frontend-integration.sql
-psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-18-user-permission.sql
-psql -h 127.0.0.1 -U ivorysql -d lims -f src/main/resources/db/patch/2026-07-18-permission-followup.sql
+psql -h 127.0.0.1 -U ivorysql -d mcmis -f src/main/resources/db/patch/2026-07-16-security-hardening.sql
+psql -h 127.0.0.1 -U ivorysql -d mcmis -f src/main/resources/db/patch/2026-07-17-frontend-integration.sql
+psql -h 127.0.0.1 -U ivorysql -d mcmis -f src/main/resources/db/patch/2026-07-18-user-permission.sql
+psql -h 127.0.0.1 -U ivorysql -d mcmis -f src/main/resources/db/patch/2026-07-18-permission-followup.sql
+psql -h 127.0.0.1 -U ivorysql -d mcmis -f src/main/resources/db/patch/2026-07-19-welcome-menu.sql
 ```
 
 模拟数据包含 4 个部门、4 个角色、4 个用户（密码均为 BCrypt 加密的 `123456`）。
@@ -92,6 +93,7 @@ src/main/java/com/shou/mcmis/
 │
 ├── organize/                         # 组织架构管理（RBAC）
 │   ├── user/             # 用户管理 → /system/users
+│   ├── userpermission/   # 用户直接权限、最终权限、权限审计与强制下线
 │   ├── role/             # 角色管理 → /system/roles
 │   ├── permission/       # 权限管理 → /system/permissions
 │   ├── dept/             # 部门管理 → /system/depts
@@ -139,6 +141,7 @@ src/main/java/com/shou/mcmis/
 | POST | `/auth/refresh` | 刷新令牌（需携带 Authorization Header，可为已过期的 AccessToken）| 公开 |
 | POST | `/auth/logout` | 注销 | 需登录 |
 | GET | `/auth/me` | 获取当前用户信息 | 需登录 |
+| GET | `/auth/menus` | 按当前用户最终有效权限获取 ProLayout 菜单树 | 需登录 |
 
 ### 系统管理接口 `/system/*`
 
@@ -150,6 +153,7 @@ src/main/java/com/shou/mcmis/
 | 部门管理 | `/system/depts` | CRUD + `GET /tree`（树形结构） |
 | 菜单管理 | `/system/menus` | CRUD + `GET /tree`（树形结构） |
 | 操作日志 | `/system/logs` | 分页查询（只读，游标分页） |
+| 用户直接权限 | `/system/users` | 直接授权、最终权限、权限审计、强制下线 |
 
 ---
 
@@ -247,6 +251,149 @@ GET /system/logs?lastId=&pageSize=20
 - `organize:user:add` — 新增用户按钮
 - `organize:user:edit` — 编辑用户按钮
 - `organize:user:del` — 删除用户按钮
+
+权限系统已从单一角色权限扩展为“角色权限 + 用户直接权限 + 最终有效权限”模型。运行时鉴权、当前用户信息和授权菜单均使用同一份最终有效权限快照，避免前端菜单、按钮与后端接口权限不一致。
+
+#### 4.1 最终有效权限模型
+
+普通用户的权限按以下顺序计算：
+
+```text
+角色权限
+  + 当前时间段内生效的用户 ALLOW
+  + ALLOW 所需的依赖权限
+  - 当前时间段内生效的用户 DENY
+  - 因依赖权限缺失而不可用的操作权限
+= 最终有效权限
+```
+
+- `ALLOW = 1`：在角色权限之外直接增加权限。
+- `DENY = 2`：从角色权限和直接 ALLOW 的合并结果中移除权限，DENY 优先。
+- `add`、`edit`、`del`、`audit`、`force-logout` 等操作权限依赖同资源的 `list` 权限。
+- `organize:user-permission:list` 显式依赖 `organize:user:list`。
+- 如果列表权限被 DENY，依赖该列表权限的操作权限也会从最终结果中移除。
+- 禁用或已删除的权限不会进入最终有效权限。
+
+`GET /auth/me` 返回当前用户的 `roles`、最终 `permissions` 和 `nextPermissionBoundary`。JWT 中虽然包含签发时的权限信息，但每个已认证请求仍会根据数据库和 Redis 中的最新最终权限重新构建 Spring Security Authorities，因此权限变更不依赖旧 JWT 中的权限声明。
+
+#### 4.2 超级管理员保护
+
+`ROLE_ADMIN` 是系统最高权限角色，并受到以下保护：
+
+- 超级管理员始终拥有所有启用的权限。
+- 禁止为超级管理员创建或修改为 DENY 的用户直接权限。
+- `ROLE_ADMIN` 角色不能禁用或删除。
+- 系统必须至少保留一个启用的超级管理员账号；不能删除、禁用最后一个超级管理员，也不能移除其最高权限角色。
+- 暂未引入 break-glass 账号，最高权限可用性由上述约束保证。
+
+其他角色和普通用户允许配置 DENY。
+
+#### 4.3 定时直接授权
+
+用户直接权限存储于 `sys_user_permission`，支持永久授权和提前安排多段固定授权：
+
+| 字段 | 说明 |
+|------|------|
+| `permission_id` | 被直接配置的权限 |
+| `effect` | `1` 为 ALLOW，`2` 为 DENY |
+| `valid_from` | 生效时间；为空表示立即生效 |
+| `expires_at` | 失效时间；为空表示长期有效 |
+| `reason` | 授权或变更原因，必填，最多 256 字符 |
+| `grant_by` | 实际操作人 |
+| `version` | 乐观锁版本号 |
+
+- 时间区间采用左闭右开 `[valid_from, expires_at)`。
+- 底层存储和权限判断按秒级精度执行，纳秒会被截断；管理界面可以按分钟输入。
+- 对同一用户、同一权限，所有未删除授权的时间段不得重叠，包括 ALLOW 与 DENY 之间的重叠。
+- 无界时间使用负无穷或正无穷参与区间判断。
+- 服务层会预检查重叠，数据库同时使用 `btree_gist` 与 `EXCLUDE USING gist` 约束阻止并发写入造成的重叠。
+- 新增、编辑和撤销均要求填写原因；编辑支持 `version` 乐观锁检查。
+
+请求中的时间建议使用 ISO LocalDateTime，例如：
+
+```json
+{
+  "permissionId": 12,
+  "effect": 1,
+  "validFrom": "2026-07-21T09:00:00",
+  "expiresAt": "2026-07-21T18:00:00",
+  "reason": "临时承担部门维护工作"
+}
+```
+
+#### 4.4 权限缓存与自动失效
+
+最终权限快照使用 Redis 缓存，Key 前缀为 `authz:effective:v2:`：
+
+- 常规缓存最长 300 秒。
+- 存在未来生效或失效时间时，TTL 会缩短到最近的 `nextPermissionBoundary`。
+- 到达边界后缓存自动过期，下一请求按新的时间状态重新计算权限。
+- 新增、编辑、撤销直接授权，以及用户角色、角色权限等关联变化后，会在事务提交后主动清理受影响用户的权限缓存。
+- Redis 读取或写入异常时会记录警告并回源数据库，不以缓存可用性作为鉴权正确性的前提。
+
+#### 4.5 菜单可见性
+
+`GET /auth/menus` 返回与 Ant Design Pro `MenuDataItem` 对齐的树形结构，字段包括 `key`、`name`、`path`、`icon`、`hideInMenu` 和 `children`。
+
+菜单可见性根据最终有效权限计算：
+
+- 设置了 `required_permission_id` 的叶子菜单，仅在对应权限存在于最终有效权限时显示。
+- 目录菜单不会因为自身没有权限码而无条件显示；只有至少一个子菜单可见时才连同祖先目录一起返回。
+- 没有权限要求的普通叶子菜单可以显示，例如欢迎页。
+- 禁用菜单不会出现在当前用户菜单中。
+- `/system/menus/tree` 是后台菜单管理树，会包含禁用项，不应与当前用户授权菜单混用。
+
+菜单记录必须绑定正确的列表权限，例如用户管理菜单绑定 `organize:user:list`。不能仅根据角色菜单关联或某一条 ALLOW/DENY 记录机械决定显示状态。
+
+#### 4.6 独立权限审计
+
+权限变更除写入通用操作日志 `sys_log` 外，还会写入独立的 `sys_user_permission_audit`：
+
+- 审计操作包括 `CREATE`、`UPDATE` 和 `REVOKE`。
+- 保存变更前后的 JSON 快照、必填原因、操作人 ID、操作人用户名、请求 ID、IP 和操作时间。
+- 撤销直接授权采用逻辑删除，但审计记录保持独立，不随授权记录删除。
+- 权限审计通过独立权限 `organize:user-permission:audit` 控制。
+
+权限系统当前不包含审批流，授权操作在通过权限校验和数据约束后立即生效或按计划生效。
+
+#### 4.7 强制下线
+
+强制下线是独立于“禁用用户”的安全操作：
+
+- 调用后递增用户的 `auth_version`。
+- 撤销该用户的 RefreshToken。
+- 清理该用户的最终权限缓存。
+- 已签发 AccessToken 中的 `authVersion` 与数据库不一致后立即失效。
+- 操作必须提供原因，并受 `organize:user:force-logout` 权限控制。
+
+禁用用户仍会阻止登录并撤销刷新凭证；强制下线用于在不改变用户启用状态的情况下终止全部现有会话。
+
+#### 4.8 用户直接权限接口
+
+所有接口均位于 `/system/users` 下：
+
+| 方法 | 路径 | 说明 | 所需权限 |
+|------|------|------|----------|
+| GET | `/permission-options` | 查询可直接授权的启用权限 | `organize:user-permission:list`、`organize:user-permission:add`、`organize:user-permission:edit` 任一 |
+| GET | `/{userId}/permission-grants` | 查询用户全部直接授权时段 | `organize:user-permission:list` |
+| GET | `/{userId}/permissions/effective` | 查询角色、ALLOW、DENY 和最终权限 | `organize:user-permission:list` |
+| POST | `/{userId}/permission-grants` | 新增直接授权 | `organize:user-permission:add` |
+| PUT | `/{userId}/permission-grants/{grantId}` | 编辑直接授权 | `organize:user-permission:edit` |
+| DELETE | `/{userId}/permission-grants/{grantId}` | 撤销直接授权，Body 必须包含原因 | `organize:user-permission:del` |
+| GET | `/{userId}/permission-grants/audit` | 查询权限审计记录 | `organize:user-permission:audit` |
+| POST | `/{userId}/force-logout` | 强制用户全部会话下线 | `organize:user:force-logout` |
+
+#### 4.9 数据库升级说明
+
+全新数据库直接执行 `src/main/resources/db/init.sql`，已包含权限系统的完整表结构、约束、权限和菜单种子。
+
+旧数据库按 README“初始化数据库”章节中的顺序执行补丁。其中：
+
+- `2026-07-18-user-permission.sql` 创建 `btree_gist` 扩展、直接权限表、独立审计表、菜单权限外键和 `auth_version`。
+- `2026-07-18-permission-followup.sql` 校验菜单权限外键约束。
+- `2026-07-19-welcome-menu.sql` 增加所有已登录用户可见的欢迎页，并规范系统管理菜单图标和排序。
+
+IvorySQL 必须支持并安装 `btree_gist`。如果数据库账号没有创建扩展的权限，应由数据库管理员预先安装后再执行补丁。
 
 ### 5. 请求/响应约定
 
